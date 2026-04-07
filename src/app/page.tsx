@@ -105,7 +105,7 @@ export default function Home() {
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-500 rounded-lg flex items-center justify-center text-sm font-bold">
             G
           </div>
-          <span className="text-xl font-bold">GeoArena</span>
+          <span className="font-display text-xl font-bold">GeoArena</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-zinc-500">v0.1</span>
@@ -120,7 +120,7 @@ export default function Home() {
             <div className="flex justify-center mb-6">
               <GlobeIcon />
             </div>
-            <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent">
+            <h1 className="font-display text-5xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent">
               GeoArena
             </h1>
             <p className="text-lg text-zinc-400 max-w-md mx-auto">
@@ -150,7 +150,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold mb-1 group-hover:text-green-400 transition-colors">
+                <h3 className="font-display text-xl font-bold mb-1 group-hover:text-green-400 transition-colors">
                   Classic
                 </h3>
                 <p className="text-sm text-zinc-400 mb-4">
@@ -178,7 +178,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold mb-1 text-zinc-500">
+                <h3 className="font-display text-xl font-bold mb-1 text-zinc-500">
                   Timed
                 </h3>
                 <p className="text-sm text-zinc-600 mb-4">
@@ -204,7 +204,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold mb-1 text-zinc-500">Duel</h3>
+                <h3 className="font-display text-xl font-bold mb-1 text-zinc-500">Duel</h3>
                 <p className="text-sm text-zinc-600 mb-4">
                   Challenge a friend. Same locations, head-to-head. Best score
                   wins.
@@ -228,7 +228,7 @@ export default function Home() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold mb-1 text-zinc-500">
+                <h3 className="font-display text-xl font-bold mb-1 text-zinc-500">
                   Regions
                 </h3>
                 <p className="text-sm text-zinc-600 mb-4">

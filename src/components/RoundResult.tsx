@@ -100,7 +100,7 @@ export default function RoundResult({
         <div className="max-w-4xl mx-auto">
           {/* Location name */}
           <div className="text-center sm:text-left mb-2 sm:mb-0 sm:float-left">
-            <h2 className="text-lg sm:text-2xl font-bold text-white">
+            <h2 className="font-display text-lg sm:text-2xl font-bold text-white">
               {locationName}
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm">
