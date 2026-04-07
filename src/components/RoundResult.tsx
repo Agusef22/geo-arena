@@ -129,7 +129,7 @@ export default function RoundResult({
                 Penalty
               </p>
               <p
-                className="text-lg sm:text-2xl font-bold"
+                className="text-lg sm:text-2xl font-bold tabular-nums"
                 style={{ color: tier.color }}
               >
                 {penalty === 0 ? "0" : `-${animatedPenalty.toLocaleString()}`}
@@ -146,7 +146,7 @@ export default function RoundResult({
               <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider">
                 Score
               </p>
-              <p className="text-sm sm:text-lg font-bold text-yellow-400">
+              <p className="text-sm sm:text-lg font-bold text-yellow-400 tabular-nums">
                 {currentScore.toLocaleString()}
               </p>
               <div className="w-16 sm:w-24 h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">

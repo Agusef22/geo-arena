@@ -98,7 +98,7 @@ export default function GameSummary({
         <p className="text-xs sm:text-sm text-zinc-400 uppercase tracking-wider mb-1">
           Final Score
         </p>
-        <p className="text-4xl sm:text-5xl font-bold text-yellow-400">
+        <p className="text-4xl sm:text-5xl font-bold text-yellow-400 tabular-nums">
           {animatedScore.toLocaleString()}
         </p>
         <div className="w-full h-2 bg-zinc-700 rounded-full mt-3 overflow-hidden">

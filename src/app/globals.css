@@ -13,6 +13,10 @@
   --font-display: var(--font-display);
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -43,7 +47,9 @@ body {
   display: none !important;
 }
 
-/* Smooth transitions for game UI */
-* {
-  scroll-behavior: smooth;
+/* Smooth scrolling (respects reduced motion preference) */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }

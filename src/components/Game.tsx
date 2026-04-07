@@ -330,7 +330,7 @@ export default function Game() {
 
         {/* Score */}
         <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2 sm:px-5 sm:py-3 pointer-events-auto">
-          <span className="text-yellow-400 font-bold text-sm sm:text-lg">
+          <span className="text-yellow-400 font-bold text-sm sm:text-lg tabular-nums">
             {currentScore.toLocaleString()}
           </span>
         </div>
