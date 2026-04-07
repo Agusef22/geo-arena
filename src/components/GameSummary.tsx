@@ -18,13 +18,24 @@ interface GameSummaryProps {
   onPlayAgain: () => void;
 }
 
-function getScoreMessage(score: number): { emoji: string; message: string } {
+function getScoreMessage(score: number): { color: string; message: string } {
   const pct = score / STARTING_SCORE;
-  if (pct >= 0.9) return { emoji: "🏆", message: "Legendary!" };
-  if (pct >= 0.7) return { emoji: "🔥", message: "Amazing!" };
-  if (pct >= 0.5) return { emoji: "👏", message: "Great job!" };
-  if (pct >= 0.3) return { emoji: "🌍", message: "Not bad!" };
-  return { emoji: "🗺️", message: "Keep exploring!" };
+  if (pct >= 0.9) return { color: "#facc15", message: "Legendary!" };
+  if (pct >= 0.7) return { color: "#f97316", message: "Amazing!" };
+  if (pct >= 0.5) return { color: "#22c55e", message: "Great job!" };
+  if (pct >= 0.3) return { color: "#3b82f6", message: "Not bad!" };
+  return { color: "#a1a1aa", message: "Keep exploring!" };
+}
+
+function ResultIcon({ color }: { color: string }) {
+  return (
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      <path d="M2 12h20" />
+      <circle cx="12" cy="12" r="3" fill={color} opacity="0.2" />
+    </svg>
+  );
 }
 
 function RoundRow({ round, index }: { round: RoundData; index: number }) {
@@ -64,7 +75,7 @@ export default function GameSummary({
   rounds,
   onPlayAgain,
 }: GameSummaryProps) {
-  const { emoji, message } = getScoreMessage(finalScore);
+  const { color, message } = getScoreMessage(finalScore);
   const animatedScore = useAnimatedNumber(finalScore, 1200);
   const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
   const pct = Math.round((finalScore / STARTING_SCORE) * 100);
@@ -82,7 +93,7 @@ export default function GameSummary({
 
   return (
     <div className="flex flex-col items-center justify-start sm:justify-center gap-4 sm:gap-6 h-full text-center px-4 py-6 sm:py-8 overflow-y-auto">
-      <div className="text-5xl sm:text-7xl">{emoji}</div>
+      <ResultIcon color={color} />
 
       <div>
         <h1 className="font-display text-2xl sm:text-4xl font-bold text-white mb-1">

@@ -168,8 +168,12 @@ export default function Game() {
               className="absolute inset-2 rounded-full border border-zinc-600 animate-spin"
               style={{ animationDuration: "3s" }}
             />
-            <div className="absolute inset-0 flex items-center justify-center text-2xl">
-              🌍
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                <path d="M2 12h20" />
+              </svg>
             </div>
           </div>
 
@@ -201,7 +205,12 @@ export default function Game() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 bg-grid px-4">
         <div className="text-center">
-          <div className="text-5xl mb-6">😔</div>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-6 mx-auto">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            <path d="M2 12h20" />
+            <line x1="8" y1="8" x2="16" y2="16" stroke="#ef4444" strokeWidth="2" />
+          </svg>
           <h2 className="text-xl font-bold text-white mb-2">
             Couldn&apos;t find enough locations
           </h2>

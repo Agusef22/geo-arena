@@ -182,11 +182,9 @@ export default function Home() {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center gap-6 text-sm text-zinc-500">
-            <span>Random locations every game</span>
-            <span className="text-zinc-700">·</span>
-            <span>Powered by Google Street View</span>
-          </div>
+          <p className="text-sm text-zinc-500">
+            Random locations every game · Powered by Google Street View
+          </p>
         </div>
       </div>
     </div>
