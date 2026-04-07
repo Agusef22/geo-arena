@@ -1,5 +1,30 @@
 import Link from "next/link";
 
+function LogoIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="16" cy="14" r="12" stroke="url(#logo-grad)" strokeWidth="2" />
+      <ellipse cx="16" cy="14" rx="5" ry="12" stroke="url(#logo-grad)" strokeWidth="1.5" />
+      <line x1="4" y1="14" x2="28" y2="14" stroke="url(#logo-grad)" strokeWidth="1.5" />
+      <path d="M16 26l-3 5h6l-3-5z" fill="#22c55e" />
+      <circle cx="16" cy="14" r="3" fill="#22c55e" opacity="0.3" />
+      <defs>
+        <linearGradient id="logo-grad" x1="4" y1="2" x2="28" y2="26">
+          <stop stopColor="#60a5fa" />
+          <stop offset="0.5" stopColor="#22d3ee" />
+          <stop offset="1" stopColor="#22c55e" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function LockIcon() {
   return (
     <svg
@@ -24,9 +49,7 @@ export default function Home() {
       {/* Navbar */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/50">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-500 rounded-lg flex items-center justify-center text-sm font-bold">
-            G
-          </div>
+          <LogoIcon size={28} />
           <span className="font-display text-xl font-bold">GeoArena</span>
         </div>
         <div className="flex items-center gap-4">
@@ -39,6 +62,9 @@ export default function Home() {
         <div className="w-full max-w-4xl mx-auto">
           {/* Header — left-aligned */}
           <div className="mb-10">
+            <div className="mb-4">
+              <LogoIcon size={48} />
+            </div>
             <h1 className="font-display text-4xl sm:text-6xl font-bold mb-3 text-wrap-balance bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent">
               GeoArena
             </h1>
