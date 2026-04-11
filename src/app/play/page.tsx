@@ -8,7 +8,6 @@ export default function PlayPage() {
   const [mapsLoaded, setMapsLoaded] = useState(false);
 
   useEffect(() => {
-    // Check if already loaded (e.g. navigating back)
     if (window.google?.maps) {
       setMapsLoaded(true);
     }

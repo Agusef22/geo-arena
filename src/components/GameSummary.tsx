@@ -7,6 +7,7 @@ import {
   ROUNDS_PER_GAME,
   formatDistance,
   getPenaltyTier,
+  getScoreMessage,
 } from "@/lib/game";
 import type { RoundData } from "@/lib/types";
 import { useReverseGeocode } from "@/hooks/useReverseGeocode";
@@ -16,18 +17,19 @@ interface GameSummaryProps {
   finalScore: number;
   rounds: RoundData[];
   onPlayAgain: () => void;
+  gameOver?: boolean;
 }
 
-function getScoreMessage(score: number): { color: string; message: string } {
-  const pct = score / STARTING_SCORE;
-  if (pct >= 0.9) return { color: "#facc15", message: "Legendary!" };
-  if (pct >= 0.7) return { color: "#f97316", message: "Amazing!" };
-  if (pct >= 0.5) return { color: "#22c55e", message: "Great job!" };
-  if (pct >= 0.3) return { color: "#3b82f6", message: "Not bad!" };
-  return { color: "#a1a1aa", message: "Keep exploring!" };
-}
-
-function ResultIcon({ color }: { color: string }) {
+function ResultIcon({ color, gameOver }: { color: string; gameOver?: boolean }) {
+  if (gameOver) {
+    return (
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="8" y1="8" x2="16" y2="16" />
+        <line x1="16" y1="8" x2="8" y2="16" />
+      </svg>
+    );
+  }
   return (
     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
@@ -40,7 +42,7 @@ function ResultIcon({ color }: { color: string }) {
 
 function RoundRow({ round, index }: { round: RoundData; index: number }) {
   const name = useReverseGeocode(round.location.lat, round.location.lng);
-  const tier = getPenaltyTier(round.penalty);
+  const tier = getPenaltyTier(round.penaltyRatio);
 
   return (
     <div className="flex items-center justify-between bg-zinc-800/60 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
@@ -52,11 +54,6 @@ function RoundRow({ round, index }: { round: RoundData; index: number }) {
           </p>
           <p className="text-[10px] sm:text-xs text-zinc-500">
             {formatDistance(round.distance)}
-            {round.multiplier > 1 && (
-              <span className="ml-1.5 text-orange-400">
-                x{round.multiplier.toFixed(1)}
-              </span>
-            )}
           </p>
         </div>
       </div>
@@ -74,11 +71,13 @@ export default function GameSummary({
   finalScore,
   rounds,
   onPlayAgain,
+  gameOver = false,
 }: GameSummaryProps) {
   const { color, message } = getScoreMessage(finalScore);
-  const animatedScore = useAnimatedNumber(finalScore, 1200);
+  const animatedScore = useAnimatedNumber(finalScore, 1200, gameOver ? 0 : undefined);
   const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
   const pct = Math.round((finalScore / STARTING_SCORE) * 100);
+  const roundsPlayed = rounds.length;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -93,29 +92,31 @@ export default function GameSummary({
 
   return (
     <div className="flex flex-col items-center justify-start sm:justify-center gap-4 sm:gap-6 h-full text-center px-4 py-6 sm:py-8 overflow-y-auto">
-      <ResultIcon color={color} />
+      <ResultIcon color={color} gameOver={gameOver} />
 
       <div>
         <h1 className="font-display text-2xl sm:text-4xl font-bold text-white mb-1">
           {message}
         </h1>
         <p className="text-zinc-400 text-sm">
-          {ROUNDS_PER_GAME} rounds completed
+          {gameOver
+            ? `Eliminated in round ${roundsPlayed} of ${ROUNDS_PER_GAME}`
+            : `${ROUNDS_PER_GAME} rounds completed`}
         </p>
       </div>
 
       {/* Score card */}
-      <div className="bg-zinc-800 rounded-2xl p-4 sm:p-6 w-full max-w-[320px]">
+      <div className={`rounded-2xl p-4 sm:p-6 w-full max-w-[320px] ${gameOver ? "bg-red-950/50 border border-red-900/50" : "bg-zinc-800"}`}>
         <p className="text-xs sm:text-sm text-zinc-400 uppercase tracking-wider mb-1">
           Final Score
         </p>
-        <p className="text-4xl sm:text-5xl font-bold text-yellow-400 tabular-nums">
-          {animatedScore.toLocaleString()}
+        <p className={`text-4xl sm:text-5xl font-bold tabular-nums ${gameOver ? "text-red-500" : "text-yellow-400"}`}>
+          {gameOver ? "0" : animatedScore.toLocaleString()}
         </p>
         <div className="w-full h-2 bg-zinc-700 rounded-full mt-3 overflow-hidden">
           <div
-            className="h-full bg-yellow-400 rounded-full transition-all duration-1000"
-            style={{ width: `${pct}%` }}
+            className={`h-full rounded-full transition-all duration-1000 ${gameOver ? "bg-red-500" : "bg-yellow-400"}`}
+            style={{ width: gameOver ? "0%" : `${pct}%` }}
           />
         </div>
         <div className="flex justify-between text-xs sm:text-sm mt-2">
@@ -149,7 +150,7 @@ export default function GameSummary({
           onClick={onPlayAgain}
           className="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-3 sm:py-4 px-8 sm:px-12 rounded-full shadow-lg transition-all text-base sm:text-xl cursor-pointer flex items-center gap-2"
         >
-          <span>Play Again</span>
+          <span>{gameOver ? "Try Again" : "Play Again"}</span>
           <kbd className="hidden sm:inline text-xs bg-green-600 px-1.5 py-0.5 rounded">
             Enter
           </kbd>

@@ -6,5 +6,6 @@ export interface RoundData {
   guessLng: number;
   distance: number;
   penalty: number;
-  multiplier: number;
+  penaltyRatio: number;
+  maxPenalty: number;
 }

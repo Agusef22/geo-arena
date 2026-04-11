@@ -10,14 +10,16 @@ import { findStreetViewLocation, type Location } from "@/lib/locations";
 import type { RoundData } from "@/lib/types";
 import {
   haversineDistance,
-  calculateRoundPenalty,
-  getRoundMultiplier,
+  calculatePenalty,
+  distanceToPenaltyRatio,
+  getRoundMaxPenalty,
   ROUNDS_PER_GAME,
   STARTING_SCORE,
 } from "@/lib/game";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
-type GamePhase = "loading" | "playing" | "result" | "summary" | "error";
+type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
 
 export default function Game() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -26,9 +28,11 @@ export default function Game() {
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [loadProgress, setLoadProgress] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
+  const [displayedScore, setDisplayedScore] = useState(STARTING_SCORE);
   const streetViewKeyRef = useRef(0);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
   const { playGood, playBad, playNext } = useSoundEffects();
+  const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
 
   useEffect(() => {
     if (window.google) {
@@ -81,6 +85,7 @@ export default function Game() {
     setLocations(locs);
     setCurrentRound(0);
     setRounds([]);
+    setDisplayedScore(STARTING_SCORE);
     setPhase("playing");
     setMapOpen(false);
     streetViewKeyRef.current += 1;
@@ -92,11 +97,11 @@ export default function Game() {
 
   const currentLocation = locations[currentRound];
 
-  const totalPenalty = useMemo(
-    () => rounds.reduce((sum, r) => sum + r.penalty, 0),
+  // Current score = starting score - sum of all penalties
+  const currentScore = useMemo(
+    () => Math.max(0, STARTING_SCORE - rounds.reduce((sum, r) => sum + r.penalty, 0)),
     [rounds]
   );
-  const currentScore = STARTING_SCORE - totalPenalty;
 
   const handleGuess = useCallback(
     (guessLat: number, guessLng: number) => {
@@ -107,11 +112,12 @@ export default function Game() {
         guessLat,
         guessLng
       );
-      const penalty = calculateRoundPenalty(distance, currentRound);
-      const multiplier = getRoundMultiplier(currentRound);
+      const penalty = calculatePenalty(distance, currentRound);
+      const penaltyRatio = distanceToPenaltyRatio(distance);
+      const maxPenalty = getRoundMaxPenalty(currentRound);
 
-      // Sound based on performance
-      if (penalty <= 500) {
+      // Sound based on how well they did
+      if (penaltyRatio < 0.1) {
         playGood();
       } else {
         playBad();
@@ -125,7 +131,8 @@ export default function Game() {
           guessLng,
           distance,
           penalty,
-          multiplier,
+          penaltyRatio,
+          maxPenalty,
         },
       ]);
       setPhase("result");
@@ -136,6 +143,17 @@ export default function Game() {
 
   const handleNext = useCallback(() => {
     playNext();
+
+    // Calculate score after this round
+    const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
+    const scoreAfter = Math.max(0, STARTING_SCORE - totalPenalty);
+
+    // Hard stop: game over if score hit 0
+    if (scoreAfter <= 0) {
+      setPhase("gameover");
+      return;
+    }
+
     if (currentRound + 1 >= ROUNDS_PER_GAME) {
       setPhase("summary");
     } else {
@@ -143,14 +161,15 @@ export default function Game() {
       setPhase("playing");
       setMapOpen(false);
       streetViewKeyRef.current += 1;
+      setDisplayedScore(scoreAfter);
     }
-  }, [currentRound, playNext]);
+  }, [currentRound, rounds, playNext]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (phase === "result" && (e.key === "Enter" || e.key === " ")) {
+      if ((phase === "result" || phase === "gameover") && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
-        handleNext();
+        if (phase === "result") handleNext();
       }
     };
     window.addEventListener("keydown", handler);
@@ -237,6 +256,20 @@ export default function Game() {
     );
   }
 
+  // Game Over screen
+  if (phase === "gameover") {
+    return (
+      <div className="h-screen bg-zinc-950">
+        <GameSummary
+          finalScore={0}
+          rounds={rounds}
+          onPlayAgain={loadLocations}
+          gameOver
+        />
+      </div>
+    );
+  }
+
   if (phase === "summary") {
     return (
       <div className="h-screen bg-zinc-950">
@@ -251,6 +284,7 @@ export default function Game() {
 
   if (phase === "result") {
     const lastRound = rounds[rounds.length - 1];
+    const scoreBeforeThisRound = STARTING_SCORE - rounds.slice(0, -1).reduce((sum, r) => sum + r.penalty, 0);
     return (
       <div className="h-screen bg-zinc-900">
         <RoundResult
@@ -260,12 +294,14 @@ export default function Game() {
           guessLng={lastRound.guessLng}
           distanceKm={lastRound.distance}
           penalty={lastRound.penalty}
-          multiplier={lastRound.multiplier}
+          penaltyRatio={lastRound.penaltyRatio}
+          maxPenalty={lastRound.maxPenalty}
           currentScore={currentScore}
+          previousScore={scoreBeforeThisRound}
           round={currentRound + 1}
           totalRounds={ROUNDS_PER_GAME}
           onNext={handleNext}
-          isFinalRound={currentRound + 1 >= ROUNDS_PER_GAME}
+          isFinalRound={currentRound + 1 >= ROUNDS_PER_GAME || currentScore <= 0}
         />
       </div>
     );
@@ -310,7 +346,7 @@ export default function Game() {
 
           {/* Round info */}
           <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2 sm:px-5 sm:py-3 text-white flex items-center gap-2 sm:gap-4">
-            {/* Round dots - hidden on very small screens */}
+            {/* Round dots */}
             <div className="hidden sm:flex items-center gap-1.5">
               {Array.from({ length: ROUNDS_PER_GAME }).map((_, i) => (
                 <div
@@ -329,18 +365,13 @@ export default function Game() {
             <span className="font-bold text-xs sm:text-sm">
               {currentRound + 1}/{ROUNDS_PER_GAME}
             </span>
-            {currentRound > 0 && (
-              <span className="text-xs text-orange-400 font-medium">
-                x{getRoundMultiplier(currentRound).toFixed(1)}
-              </span>
-            )}
           </div>
         </div>
 
         {/* Score */}
         <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2 sm:px-5 sm:py-3 pointer-events-auto">
           <span className="text-yellow-400 font-bold text-sm sm:text-lg tabular-nums">
-            {currentScore.toLocaleString()}
+            {animatedHud.toLocaleString()}
           </span>
         </div>
       </div>
@@ -367,15 +398,15 @@ export default function Game() {
 
       {/* Mobile: backdrop when map is open */}
       {mapOpen && (
-        <div className="sm:hidden fixed inset-0 z-20 bg-black/50 backdrop-blur-sm" />
+        <div className="sm:hidden fixed inset-0 z-20 bg-black/70" />
       )}
 
-      {/* Single GuessMap - responsive: fullscreen overlay on mobile, mini-map on desktop */}
+      {/* GuessMap */}
       <div
         className={
           mapOpen
-            ? "fixed inset-2 top-14 bottom-4 z-30 sm:absolute sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[320px] sm:h-[220px] sm:hover:w-[550px] sm:hover:h-[420px] sm:z-10 transition-all duration-300 ease-in-out"
-            : "hidden sm:block absolute z-10 bottom-4 right-4 w-[320px] h-[220px] hover:w-[550px] hover:h-[420px] transition-all duration-300 ease-in-out"
+            ? "fixed inset-2 top-14 bottom-4 z-30 sm:absolute sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[70vw] sm:h-[70vh] sm:scale-[0.3] sm:hover:scale-100 sm:origin-bottom-right sm:transition-transform sm:duration-300 sm:ease-out sm:z-10"
+            : "hidden sm:block absolute z-10 bottom-4 right-4 w-[70vw] h-[70vh] scale-[0.3] hover:scale-100 origin-bottom-right transition-transform duration-300 ease-out"
         }
       >
         <div className="w-full h-full rounded-lg overflow-hidden border-2 border-white/20 shadow-2xl">

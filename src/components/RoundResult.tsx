@@ -13,8 +13,10 @@ interface RoundResultProps {
   guessLng: number;
   distanceKm: number;
   penalty: number;
-  multiplier: number;
+  penaltyRatio: number;
+  maxPenalty: number;
   currentScore: number;
+  previousScore: number;
   round: number;
   totalRounds: number;
   onNext: () => void;
@@ -28,17 +30,21 @@ export default function RoundResult({
   guessLng,
   distanceKm,
   penalty,
-  multiplier,
+  penaltyRatio,
+  maxPenalty,
   currentScore,
+  previousScore,
   round,
   totalRounds,
   onNext,
   isFinalRound,
 }: RoundResultProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const animatedPenalty = useAnimatedNumber(penalty);
-  const tier = getPenaltyTier(penalty);
+  const animatedPenalty = useAnimatedNumber(penalty, 1000);
+  const animatedTotal = useAnimatedNumber(currentScore, 1000, previousScore);
+  const tier = getPenaltyTier(penaltyRatio);
   const locationName = useReverseGeocode(actualLat, actualLng);
+  const isDead = currentScore <= 0;
 
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
@@ -105,11 +111,9 @@ export default function RoundResult({
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm">
               Round {round} of {totalRounds}
-              {multiplier > 1 && (
-                <span className="ml-2 text-orange-400">
-                  x{multiplier.toFixed(1)}
-                </span>
-              )}
+              <span className="ml-2 text-zinc-600">
+                max -{maxPenalty.toLocaleString()}
+              </span>
             </p>
           </div>
 
@@ -146,13 +150,13 @@ export default function RoundResult({
               <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider">
                 Score
               </p>
-              <p className="text-sm sm:text-lg font-bold text-yellow-400 tabular-nums">
-                {currentScore.toLocaleString()}
+              <p className={`text-sm sm:text-lg font-bold tabular-nums ${isDead ? "text-red-500" : "text-yellow-400"}`}>
+                {isDead ? "0" : animatedTotal.toLocaleString()}
               </p>
               <div className="w-16 sm:w-24 h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-1000 ease-out bg-yellow-400"
-                  style={{ width: scoreBarWidth }}
+                  className={`h-full rounded-full transition-all duration-1000 ease-out ${isDead ? "bg-red-500" : "bg-yellow-400"}`}
+                  style={{ width: isDead ? "0%" : scoreBarWidth }}
                 />
               </div>
             </div>
@@ -164,12 +168,28 @@ export default function RoundResult({
       <div className="flex-1 relative">
         <div ref={mapRef} className="w-full h-full" />
 
+        {isDead && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse">
+            GAME OVER
+          </div>
+        )}
+
         <button
           onClick={onNext}
-          className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"
+          className={`absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 ${
+            isDead
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-blue-500 hover:bg-blue-600"
+          } active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2`}
         >
-          <span>{isFinalRound ? "Final Results" : "Next Round"}</span>
-          <kbd className="hidden sm:inline text-xs bg-blue-600 px-1.5 py-0.5 rounded">
+          <span>
+            {isDead
+              ? "Final Results"
+              : isFinalRound
+              ? "Final Results"
+              : "Next Round"}
+          </span>
+          <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
             Enter
           </kbd>
         </button>

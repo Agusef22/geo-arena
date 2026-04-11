@@ -21,45 +21,68 @@ export function haversineDistance(
 }
 
 export const ROUNDS_PER_GAME = 5;
-export const STARTING_SCORE = 25000;
+export const STARTING_SCORE = 10000;
 
-// Round multipliers: x1.0, x1.1, x1.2, x1.3, x1.4
-const ROUND_MULTIPLIERS = [1.0, 1.1, 1.2, 1.3, 1.4];
+// Max penalty per round — escalates each round.
+// Total max = 18,000 (way more than 10,000 so you CAN die early).
+const ROUND_MAX_PENALTY = [2500, 3000, 3500, 4000, 5000];
 
-export function getRoundMultiplier(round: number): number {
-  return ROUND_MULTIPLIERS[Math.min(round, ROUND_MULTIPLIERS.length - 1)];
+export function getRoundMaxPenalty(round: number): number {
+  return ROUND_MAX_PENALTY[Math.min(round, ROUND_MAX_PENALTY.length - 1)];
 }
 
-// Base penalty from distance.
-// Near (< 50km) = small penalty, far (> 5000km) = heavy penalty.
-// Max base penalty is ~5000 for being on the other side of the world.
-export function calculatePenalty(distanceKm: number): number {
+/**
+ * Distance → penalty ratio (0 to 1).
+ *
+ * Generous close up, brutal far away:
+ *   < 150m  →  0%    (Perfect)
+ *   5km     →  ~0.3%
+ *   50km    →  ~3%
+ *   150km   →  ~10%
+ *   500km   →  ~28%
+ *   1000km  →  ~49%
+ *   2000km  →  ~74%
+ *   5000km+ →  ~96%
+ *
+ * Uses 1 - e^(-d/1500) which gives a smooth curve that's
+ * very flat near 0 and approaches 1 asymptotically.
+ */
+export function distanceToPenaltyRatio(distanceKm: number): number {
   if (distanceKm < 0.15) return 0;
-  // Linear scaling: ~1 point per km for first 1000km, then tapers
-  const penalty = Math.round(5000 * (1 - Math.pow(0.99866, distanceKm)));
-  return Math.max(0, Math.min(5000, penalty));
+  const ratio = 1 - Math.exp(-distanceKm / 1500);
+  return Math.min(1, ratio);
 }
 
-// Calculate the actual penalty for a round (base penalty * multiplier)
-export function calculateRoundPenalty(
-  distanceKm: number,
-  round: number
-): number {
-  const base = calculatePenalty(distanceKm);
-  const multiplier = getRoundMultiplier(round);
-  return Math.round(base * multiplier);
+// Actual penalty for a round: ratio × max penalty for that round.
+export function calculatePenalty(distanceKm: number, round: number): number {
+  const ratio = distanceToPenaltyRatio(distanceKm);
+  const maxPenalty = getRoundMaxPenalty(round);
+  return Math.round(ratio * maxPenalty);
 }
 
-// Tier based on how much penalty you got (lower = better)
-export function getPenaltyTier(penalty: number): {
+// Tier based on penalty ratio (how well you did, independent of round).
+export function getPenaltyTier(penaltyRatio: number): {
   label: string;
   color: string;
 } {
-  if (penalty === 0) return { label: "Perfect!", color: "#22c55e" };
-  if (penalty <= 200) return { label: "Great!", color: "#84cc16" };
-  if (penalty <= 1000) return { label: "Good", color: "#eab308" };
-  if (penalty <= 3000) return { label: "OK", color: "#f97316" };
+  if (penaltyRatio === 0) return { label: "Perfect!", color: "#22c55e" };
+  if (penaltyRatio < 0.05) return { label: "Great!", color: "#84cc16" };
+  if (penaltyRatio < 0.2) return { label: "Good", color: "#eab308" };
+  if (penaltyRatio < 0.6) return { label: "OK", color: "#f97316" };
   return { label: "Far off", color: "#ef4444" };
+}
+
+// Final score message.
+export function getScoreMessage(score: number): {
+  color: string;
+  message: string;
+} {
+  if (score <= 0) return { color: "#ef4444", message: "Game Over" };
+  if (score >= 9500) return { color: "#facc15", message: "Legendary!" };
+  if (score >= 8000) return { color: "#f97316", message: "Amazing!" };
+  if (score >= 6000) return { color: "#22c55e", message: "Great job!" };
+  if (score >= 4000) return { color: "#3b82f6", message: "Not bad!" };
+  return { color: "#a1a1aa", message: "Keep exploring!" };
 }
 
 export function formatDistance(km: number): string {
