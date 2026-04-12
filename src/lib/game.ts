@@ -60,6 +60,14 @@ export function calculatePenalty(distanceKm: number, round: number): number {
   return Math.round(ratio * maxPenalty);
 }
 
+// Bonus for exceptional guesses.
+// Perfect (< 150m) = +5,000, Great (< 75km) = +1,000.
+export function calculateBonus(distanceKm: number): number {
+  if (distanceKm < 0.15) return 5000;
+  if (distanceKm < 75) return 1000;
+  return 0;
+}
+
 // Tier based on penalty ratio (how well you did, independent of round).
 export function getPenaltyTier(penaltyRatio: number): {
   label: string;

@@ -57,12 +57,19 @@ function RoundRow({ round, index }: { round: RoundData; index: number }) {
           </p>
         </div>
       </div>
-      <span
-        className="font-bold text-xs sm:text-sm shrink-0 ml-2"
-        style={{ color: tier.color }}
-      >
-        {round.penalty === 0 ? "0" : `-${round.penalty.toLocaleString()}`}
-      </span>
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {round.bonus > 0 && (
+          <span className="font-bold text-xs sm:text-sm text-emerald-400">
+            +{round.bonus.toLocaleString()}
+          </span>
+        )}
+        <span
+          className="font-bold text-xs sm:text-sm"
+          style={{ color: tier.color }}
+        >
+          {round.penalty === 0 ? "0" : `-${round.penalty.toLocaleString()}`}
+        </span>
+      </div>
     </div>
   );
 }
@@ -76,7 +83,8 @@ export default function GameSummary({
   const { color, message } = getScoreMessage(finalScore);
   const animatedScore = useAnimatedNumber(finalScore, 1200, gameOver ? 0 : undefined);
   const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
-  const pct = Math.round((finalScore / STARTING_SCORE) * 100);
+  const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
+  const pct = Math.min(100, Math.round((finalScore / STARTING_SCORE) * 100));
   const roundsPlayed = rounds.length;
 
   useEffect(() => {
@@ -120,10 +128,15 @@ export default function GameSummary({
           />
         </div>
         <div className="flex justify-between text-xs sm:text-sm mt-2">
-          <span className="text-zinc-500">{pct}% remaining</span>
           <span className="text-red-400">
-            -{totalPenalty.toLocaleString()} lost
+            -{totalPenalty.toLocaleString()}
           </span>
+          {totalBonus > 0 && (
+            <span className="text-emerald-400">
+              +{totalBonus.toLocaleString()}
+            </span>
+          )}
+          <span className="text-zinc-500">{pct}%</span>
         </div>
       </div>
 

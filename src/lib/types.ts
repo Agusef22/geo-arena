@@ -8,4 +8,5 @@ export interface RoundData {
   penalty: number;
   penaltyRatio: number;
   maxPenalty: number;
+  bonus: number;
 }

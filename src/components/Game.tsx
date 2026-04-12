@@ -11,6 +11,7 @@ import type { RoundData } from "@/lib/types";
 import {
   haversineDistance,
   calculatePenalty,
+  calculateBonus,
   distanceToPenaltyRatio,
   getRoundMaxPenalty,
   ROUNDS_PER_GAME,
@@ -97,9 +98,9 @@ export default function Game() {
 
   const currentLocation = locations[currentRound];
 
-  // Current score = starting score - sum of all penalties
+  // Current score = starting score - penalties + bonuses
   const currentScore = useMemo(
-    () => Math.max(0, STARTING_SCORE - rounds.reduce((sum, r) => sum + r.penalty, 0)),
+    () => Math.max(0, STARTING_SCORE - rounds.reduce((sum, r) => sum + r.penalty, 0) + rounds.reduce((sum, r) => sum + r.bonus, 0)),
     [rounds]
   );
 
@@ -115,9 +116,12 @@ export default function Game() {
       const penalty = calculatePenalty(distance, currentRound);
       const penaltyRatio = distanceToPenaltyRatio(distance);
       const maxPenalty = getRoundMaxPenalty(currentRound);
+      const bonus = calculateBonus(distance);
 
       // Sound based on how well they did
-      if (penaltyRatio < 0.1) {
+      if (bonus > 0) {
+        playGood();
+      } else if (penaltyRatio < 0.2) {
         playGood();
       } else {
         playBad();
@@ -133,6 +137,7 @@ export default function Game() {
           penalty,
           penaltyRatio,
           maxPenalty,
+          bonus,
         },
       ]);
       setPhase("result");
@@ -146,7 +151,8 @@ export default function Game() {
 
     // Calculate score after this round
     const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
-    const scoreAfter = Math.max(0, STARTING_SCORE - totalPenalty);
+    const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
+    const scoreAfter = Math.max(0, STARTING_SCORE - totalPenalty + totalBonus);
 
     // Hard stop: game over if score hit 0
     if (scoreAfter <= 0) {
@@ -284,7 +290,8 @@ export default function Game() {
 
   if (phase === "result") {
     const lastRound = rounds[rounds.length - 1];
-    const scoreBeforeThisRound = STARTING_SCORE - rounds.slice(0, -1).reduce((sum, r) => sum + r.penalty, 0);
+    const prevRounds = rounds.slice(0, -1);
+    const scoreBeforeThisRound = STARTING_SCORE - prevRounds.reduce((sum, r) => sum + r.penalty, 0) + prevRounds.reduce((sum, r) => sum + r.bonus, 0);
     return (
       <div className="h-screen bg-zinc-900">
         <RoundResult
@@ -296,6 +303,7 @@ export default function Game() {
           penalty={lastRound.penalty}
           penaltyRatio={lastRound.penaltyRatio}
           maxPenalty={lastRound.maxPenalty}
+          bonus={lastRound.bonus}
           currentScore={currentScore}
           previousScore={scoreBeforeThisRound}
           round={currentRound + 1}
