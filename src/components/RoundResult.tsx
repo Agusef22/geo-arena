@@ -185,32 +185,33 @@ export default function RoundResult({
         <div ref={mapRef} className="w-full h-full" />
 
         {isDead && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse z-10">
             GAME OVER
           </div>
         )}
+      </div>
 
-        <div className="absolute bottom-0 left-0 right-0 pb-4 sm:pb-6 flex justify-center pointer-events-none">
-          <button
-            onClick={onNext}
-            className={`pointer-events-auto ${
-              isDead
-                ? "bg-red-500 hover:bg-red-600"
-                : "bg-blue-500 hover:bg-blue-600"
-            } active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2`}
-          >
-            <span>
-              {isDead
-                ? "Final Results"
-                : isFinalRound
-                ? "Final Results"
-                : "Next Round"}
-            </span>
-            <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
-              Enter
-            </kbd>
-          </button>
-        </div>
+      {/* Next button — fixed on mobile so it's always visible */}
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6">
+        <button
+          onClick={onNext}
+          className={`${
+            isDead
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-blue-500 hover:bg-blue-600"
+          } active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2`}
+        >
+          <span>
+            {isDead
+              ? "Final Results"
+              : isFinalRound
+              ? "Final Results"
+              : "Next Round"}
+          </span>
+          <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
+            Enter
+          </kbd>
+        </button>
       </div>
     </div>
   );
