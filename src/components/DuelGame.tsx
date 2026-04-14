@@ -468,9 +468,26 @@ export default function DuelGame({ code }: { code: string }) {
   );
 
   // ====== Step 6: Listen for guesses + poll fallback ======
+  // Also restores "waiting-opponent" if I already guessed (e.g. after tab switch)
   useEffect(() => {
     if (phase !== "playing" && phase !== "waiting-opponent") return;
-    if (!duelId) return;
+    if (!duelId || !user) return;
+
+    async function checkMyGuessExists() {
+      const { data } = await supabase
+        .from("duel_guesses")
+        .select("id")
+        .eq("duel_id", duelId!)
+        .eq("player_id", user!.id)
+        .eq("round", currentRound)
+        .maybeSingle();
+
+      if (data) {
+        // I already guessed — restore state
+        hasSubmittedRef.current = true;
+        if (phase === "playing") setPhase("waiting-opponent");
+      }
+    }
 
     const channel = supabase
       .channel(`duel-guesses-${duelId}-r${currentRound}`)
@@ -487,8 +504,8 @@ export default function DuelGame({ code }: { code: string }) {
         }
       )
       .subscribe(async (status) => {
-        // Check immediately in case opponent already guessed
         if (status === "SUBSCRIBED") {
+          await checkMyGuessExists();
           await checkAndResolveGuesses(currentRound);
         }
       });
@@ -502,7 +519,7 @@ export default function DuelGame({ code }: { code: string }) {
       supabase.removeChannel(channel);
       clearInterval(poll);
     };
-  }, [phase, duelId, currentRound, supabase, checkAndResolveGuesses]);
+  }, [phase, duelId, currentRound, user, supabase, checkAndResolveGuesses]);
 
   // ====== Handle next round (player presses button) ======
   const handleNext = useCallback(async () => {
