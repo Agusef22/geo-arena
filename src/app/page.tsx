@@ -1,4 +1,7 @@
 import Link from "next/link";
+import UserMenu from "@/components/UserMenu";
+import Leaderboard from "@/components/Leaderboard";
+import PlayerStatsCard from "@/components/PlayerStats";
 
 function Globe() {
   return (
@@ -176,9 +179,7 @@ export default function Home() {
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
           GeoArena
         </span>
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-          v0.1
-        </span>
+        <UserMenu />
       </header>
 
       {/* Hero — fills viewport */}
@@ -263,16 +264,40 @@ export default function Home() {
             desc="30 seconds per round. Quick decisions, higher pressure."
             meta="30s / round"
           />
-          <ModeCard
-            name="Duel"
-            desc="Challenge a friend head-to-head. Same locations, best score wins."
-            meta="1 vs 1"
-          />
+          <Link href="/duel" className="group relative border border-neutral-900 rounded-2xl p-6 bg-[#0c0c0c] hover:border-emerald-900/50 hover:bg-emerald-950/10 transition-colors">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-2xl font-extrabold text-neutral-200 tracking-tight">
+                Duel
+              </h3>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+                <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+              </svg>
+            </div>
+            <p className="text-sm text-neutral-400 leading-relaxed mb-6 min-h-[3em]">
+              Challenge a friend head-to-head. Same locations, closest guess wins.
+            </p>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700">
+                1 vs 1
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-500 px-2.5 py-1 border border-emerald-900/50 rounded-full">
+                Play
+              </span>
+            </div>
+          </Link>
           <ModeCard
             name="Regions"
             desc="Pick a specific area. Europe, Asia, Americas. Test where it counts."
             meta="custom area"
           />
+        </div>
+      </section>
+
+      {/* Leaderboard + Stats */}
+      <section className="px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-16 border-t border-neutral-900">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-8">
+          <Leaderboard />
+          <PlayerStatsCard />
         </div>
       </section>
 

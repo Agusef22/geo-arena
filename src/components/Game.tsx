@@ -19,6 +19,7 @@ import {
 } from "@/lib/game";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { saveGameResult } from "@/lib/supabase/game-results";
 
 type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
 
@@ -32,6 +33,7 @@ export default function Game() {
   const [displayedScore, setDisplayedScore] = useState(STARTING_SCORE);
   const streetViewKeyRef = useRef(0);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
+  const savedRef = useRef(false);
   const { playGood, playBad, playNext } = useSoundEffects();
   const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
 
@@ -90,6 +92,7 @@ export default function Game() {
     setPhase("playing");
     setMapOpen(false);
     streetViewKeyRef.current += 1;
+    savedRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -157,11 +160,19 @@ export default function Game() {
     // Hard stop: game over if score hit 0
     if (scoreAfter <= 0) {
       setPhase("gameover");
+      if (!savedRef.current) {
+        savedRef.current = true;
+        saveGameResult({ score: 0, rounds, gameOver: true });
+      }
       return;
     }
 
     if (currentRound + 1 >= ROUNDS_PER_GAME) {
       setPhase("summary");
+      if (!savedRef.current) {
+        savedRef.current = true;
+        saveGameResult({ score: scoreAfter, rounds, gameOver: false });
+      }
     } else {
       setCurrentRound((r) => r + 1);
       setPhase("playing");
