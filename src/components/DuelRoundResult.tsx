@@ -26,6 +26,7 @@ interface DuelRoundResultProps {
   opponentEmoji: string;
   onNext: () => void;
   isFinalRound: boolean;
+  autoAdvanceTimer?: number | null;
 }
 
 export default function DuelRoundResult({
@@ -47,6 +48,7 @@ export default function DuelRoundResult({
   opponentEmoji,
   onNext,
   isFinalRound,
+  autoAdvanceTimer,
 }: DuelRoundResultProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const locationName = useReverseGeocode(location.lat, location.lng);
@@ -229,17 +231,24 @@ export default function DuelRoundResult({
 
       {/* Next button */}
       <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6">
-        <button
-          onClick={onNext}
-          className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"
-        >
-          <span>
-            {isFinalRound ? "Final Results" : "Next Round"}
-          </span>
-          <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
-            Enter
-          </kbd>
-        </button>
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={onNext}
+            className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"
+          >
+            <span>
+              {isFinalRound ? "Final Results" : "Next Round"}
+            </span>
+            <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
+              Enter
+            </kbd>
+          </button>
+          {autoAdvanceTimer != null && autoAdvanceTimer > 0 && (
+            <p className={`text-xs ${autoAdvanceTimer <= 3 ? "text-red-400" : "text-zinc-400"}`}>
+              Auto-advancing in {autoAdvanceTimer}s
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

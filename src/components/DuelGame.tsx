@@ -97,6 +97,13 @@ export default function DuelGame({ code }: { code: string }) {
   const readyChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [opponentReady, setOpponentReady] = useState(false);
   const [iReady, setIReady] = useState(false);
+  // Timer: countdown when opponent guessed but I haven't
+  const GUESS_TIME_LIMIT = 30;
+  const [guessTimer, setGuessTimer] = useState<number | null>(null);
+  const timerAutoSubmittedRef = useRef(-1);
+  // Auto-advance timer for result screen
+  const NEXT_ROUND_TIME_LIMIT = 10;
+  const [nextTimer, setNextTimer] = useState<number | null>(null);
 
   const me = players.find((p) => p.player_id === user?.id);
   const opponent = players.find((p) => p.player_id !== user?.id);
@@ -469,23 +476,33 @@ export default function DuelGame({ code }: { code: string }) {
 
   // ====== Step 6: Listen for guesses + poll fallback ======
   // Also restores "waiting-opponent" if I already guessed (e.g. after tab switch)
+  // And starts a timer if opponent guessed but I haven't
   useEffect(() => {
     if (phase !== "playing" && phase !== "waiting-opponent") return;
     if (!duelId || !user) return;
 
-    async function checkMyGuessExists() {
-      const { data } = await supabase
+    async function checkGuessState() {
+      const { data: guesses } = await supabase
         .from("duel_guesses")
-        .select("id")
+        .select("player_id, created_at")
         .eq("duel_id", duelId!)
-        .eq("player_id", user!.id)
-        .eq("round", currentRound)
-        .maybeSingle();
+        .eq("round", currentRound);
 
-      if (data) {
+      const myGuess = guesses?.find((g) => g.player_id === user!.id);
+      const opponentGuess = guesses?.find((g) => g.player_id !== user!.id);
+
+      if (myGuess) {
         // I already guessed — restore state
         hasSubmittedRef.current = true;
         if (phase === "playing") setPhase("waiting-opponent");
+        setGuessTimer(null);
+      } else if (opponentGuess && !hasSubmittedRef.current) {
+        // Opponent guessed but I haven't — start timer if not already running
+        const elapsed = Math.floor(
+          (Date.now() - new Date(opponentGuess.created_at).getTime()) / 1000
+        );
+        const remaining = Math.max(0, GUESS_TIME_LIMIT - elapsed);
+        setGuessTimer(remaining);
       }
     }
 
@@ -500,18 +517,20 @@ export default function DuelGame({ code }: { code: string }) {
           filter: `duel_id=eq.${duelId}`,
         },
         () => {
+          checkGuessState();
           checkAndResolveGuesses(currentRound);
         }
       )
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await checkMyGuessExists();
+          await checkGuessState();
           await checkAndResolveGuesses(currentRound);
         }
       });
 
     // Poll fallback every 2s
     const poll = setInterval(() => {
+      checkGuessState();
       checkAndResolveGuesses(currentRound);
     }, 2000);
 
@@ -520,6 +539,61 @@ export default function DuelGame({ code }: { code: string }) {
       clearInterval(poll);
     };
   }, [phase, duelId, currentRound, user, supabase, checkAndResolveGuesses]);
+
+  // ====== Step 6b: Timer countdown + auto-submit on timeout ======
+  useEffect(() => {
+    if (guessTimer === null || phase !== "playing") return;
+
+    if (guessTimer <= 0) {
+      // Time's up — auto-submit a max-distance guess
+      if (
+        !hasSubmittedRef.current &&
+        timerAutoSubmittedRef.current < currentRound &&
+        duelId &&
+        user
+      ) {
+        timerAutoSubmittedRef.current = currentRound;
+        hasSubmittedRef.current = true;
+
+        // Submit a dummy guess at 0,0 (will be ~max distance from most locations)
+        const location = locations[currentRound];
+        const distance = haversineDistance(location.lat, location.lng, 0, 0);
+
+        supabase
+          .from("duel_guesses")
+          .insert({
+            duel_id: duelId,
+            player_id: user.id,
+            round: currentRound,
+            guess_lat: 0,
+            guess_lng: 0,
+            distance_km: distance,
+            penalty: 0,
+          })
+          .then(() => {
+            setPhase("waiting-opponent");
+            setGuessTimer(null);
+            checkAndResolveGuesses(currentRound);
+          });
+      }
+      return;
+    }
+
+    const tick = setTimeout(() => {
+      setGuessTimer((t) => (t !== null ? t - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(tick);
+  }, [
+    guessTimer,
+    phase,
+    currentRound,
+    duelId,
+    user,
+    locations,
+    supabase,
+    checkAndResolveGuesses,
+  ]);
 
   // ====== Handle next round (player presses button) ======
   const handleNext = useCallback(async () => {
@@ -560,6 +634,7 @@ export default function DuelGame({ code }: { code: string }) {
     hasSubmittedRef.current = false;
     setIReady(false);
     setOpponentReady(false);
+    setGuessTimer(null);
     setCurrentRound((r) => r + 1);
     setPhase("playing");
     setMapOpen(false);
@@ -597,6 +672,36 @@ export default function DuelGame({ code }: { code: string }) {
       advanceToNextRound();
     }
   }, [phase, opponentReady, iReady, advanceToNextRound]);
+
+  // ====== Step 8: Auto-advance timer on result screen ======
+  // Start the timer when result phase begins
+  useEffect(() => {
+    if (phase === "result") {
+      setNextTimer(NEXT_ROUND_TIME_LIMIT);
+    } else if (phase !== "waiting-next") {
+      setNextTimer(null);
+    }
+  }, [phase]);
+
+  // Tick down and auto-advance when timer hits 0
+  useEffect(() => {
+    if (nextTimer === null) return;
+    if (phase !== "result" && phase !== "waiting-next") return;
+
+    if (nextTimer <= 0) {
+      // Auto-press "Next Round"
+      if (!iReady) {
+        handleNext();
+      }
+      return;
+    }
+
+    const tick = setTimeout(() => {
+      setNextTimer((t) => (t !== null ? t - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(tick);
+  }, [nextTimer, phase, iReady, handleNext]);
 
   const currentLocation = locations[currentRound];
 
@@ -748,6 +853,11 @@ export default function DuelGame({ code }: { code: string }) {
         <p className="text-neutral-600 text-sm mt-2">
           You&apos;re ready for the next round
         </p>
+        {nextTimer !== null && (
+          <p className="text-zinc-500 text-xs mt-3 tabular-nums">
+            Auto-advancing in {nextTimer}s
+          </p>
+        )}
       </div>
     );
   }
@@ -779,6 +889,7 @@ export default function DuelGame({ code }: { code: string }) {
             myScore <= 0 ||
             opponentScore <= 0
           }
+          autoAdvanceTimer={nextTimer}
         />
       </div>
     );
@@ -866,6 +977,43 @@ export default function DuelGame({ code }: { code: string }) {
           </div>
         </div>
       </div>
+
+      {/* Timer banner */}
+      {guessTimer !== null && !hasSubmittedRef.current && (
+        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-10">
+          <div
+            className={`backdrop-blur-sm rounded-full px-5 py-2.5 flex items-center gap-2.5 shadow-lg border ${
+              guessTimer <= 10
+                ? "bg-red-950/80 border-red-800/50"
+                : "bg-black/70 border-zinc-700/50"
+            }`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={guessTimer <= 10 ? "#ef4444" : "#fbbf24"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span
+              className={`font-mono font-bold text-lg tabular-nums ${
+                guessTimer <= 10 ? "text-red-400 animate-pulse" : "text-yellow-400"
+              }`}
+            >
+              {guessTimer}s
+            </span>
+            <span className="text-zinc-400 text-xs hidden sm:inline">
+              {opponent?.nickname} already guessed
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Mobile: toggle map */}
       <button
