@@ -51,7 +51,6 @@ export async function saveGameResult({
     .single();
 
   if (error) {
-    console.error("Failed to save game result:", error.message);
     return null;
   }
 

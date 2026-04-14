@@ -8,9 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   DUEL_STARTING_SCORE,
   DUEL_ROUNDS,
-  resolveDuelRound,
 } from "@/lib/duel";
-import { haversineDistance } from "@/lib/game";
 import { findStreetViewLocation, type Location } from "@/lib/locations";
 import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
@@ -110,13 +108,15 @@ export default function DuelGame({ code }: { code: string }) {
   const isHost = me?.is_host ?? false;
 
   // --- Helper: check and resolve guesses for a round ---
+  // The DB trigger (resolve_duel_guess) calculates distance_km, penalty, and
+  // updates duel_players.score automatically. We just read the results.
   const checkAndResolveGuesses = useCallback(
     async (round: number) => {
       if (!duelId || !user || roundResolvedRef.current >= round) return;
 
       const { data: guesses } = await supabase
         .from("duel_guesses")
-        .select("player_id, distance_km, guess_lat, guess_lng")
+        .select("player_id, distance_km, guess_lat, guess_lng, penalty")
         .eq("duel_id", duelId)
         .eq("round", round);
 
@@ -129,44 +129,22 @@ export default function DuelGame({ code }: { code: string }) {
       // Mark as resolved so we don't run twice
       roundResolvedRef.current = round;
 
-      const result = resolveDuelRound(
-        myGuessData.distance_km,
-        opponentGuessData.distance_km
-      );
+      // Read scores from DB (trigger already updated them)
+      const { data: playersData } = await supabase
+        .from("duel_players")
+        .select("player_id, score")
+        .eq("duel_id", duelId);
 
-      let newMyScore = myScore;
-      let newOpponentScore = opponentScore;
+      const myPlayerData = playersData?.find((p) => p.player_id === user.id);
+      const oppPlayerData = playersData?.find((p) => p.player_id !== user.id);
 
-      if (!result.isDraw) {
-        if (result.loserId === 1) {
-          // loserId 1 = first arg = me
-          newMyScore = Math.max(0, myScore - result.penalty);
-        } else {
-          newOpponentScore = Math.max(0, opponentScore - result.penalty);
-        }
-      }
+      const newMyScore = myPlayerData?.score ?? myScore;
+      const newOpponentScore = oppPlayerData?.score ?? opponentScore;
 
-      // Update DB (only one player needs to do this — let host do it)
-      if (isHost && !result.isDraw && result.loserId !== null) {
-        const loserPlayerId =
-          result.loserId === 1 ? user.id : opponent?.player_id;
-        if (loserPlayerId) {
-          await supabase
-            .from("duel_guesses")
-            .update({ penalty: result.penalty })
-            .eq("duel_id", duelId)
-            .eq("round", round)
-            .eq("player_id", loserPlayerId);
-
-          await supabase
-            .from("duel_players")
-            .update({
-              score: result.loserId === 1 ? newMyScore : newOpponentScore,
-            })
-            .eq("duel_id", duelId)
-            .eq("player_id", loserPlayerId);
-        }
-      }
+      // Determine round result from the penalty values the trigger set
+      const totalPenalty = myGuessData.penalty + opponentGuessData.penalty;
+      const isDraw = totalPenalty === 0 && Math.abs(myGuessData.distance_km - opponentGuessData.distance_km) < 5;
+      const iWon = !isDraw && myGuessData.penalty === 0 && opponentGuessData.penalty > 0;
 
       const roundData: DuelRoundData = {
         location: locations[round],
@@ -177,9 +155,9 @@ export default function DuelGame({ code }: { code: string }) {
         },
         myDistance: myGuessData.distance_km,
         opponentDistance: opponentGuessData.distance_km,
-        penalty: result.penalty,
-        iWon: result.winnerId === 1,
-        isDraw: result.isDraw,
+        penalty: Math.max(myGuessData.penalty, opponentGuessData.penalty),
+        iWon,
+        isDraw,
       };
 
       setMyScore(newMyScore);
@@ -190,7 +168,7 @@ export default function DuelGame({ code }: { code: string }) {
       setOpponentReady(false);
       setPhase("result");
     },
-    [duelId, user, opponent, isHost, myScore, opponentScore, locations, supabase]
+    [duelId, user, myScore, opponentScore, locations, supabase]
   );
 
   // --- Helper: fetch players ---
@@ -447,31 +425,27 @@ export default function DuelGame({ code }: { code: string }) {
       if (!duelId || !user || hasSubmittedRef.current) return;
       hasSubmittedRef.current = true;
 
-      const location = locations[currentRound];
-      const distance = haversineDistance(
-        location.lat,
-        location.lng,
-        guessLat,
-        guessLng
-      );
-
-      await supabase.from("duel_guesses").insert({
+      // Only send coordinates — the DB trigger calculates distance_km and penalty
+      const { error: insertError } = await supabase.from("duel_guesses").insert({
         duel_id: duelId,
         player_id: user.id,
         round: currentRound,
         guess_lat: guessLat,
         guess_lng: guessLng,
-        distance_km: distance,
-        penalty: 0,
       });
+
+      if (insertError) {
+        hasSubmittedRef.current = false;
+        return;
+      }
 
       setPhase("waiting-opponent");
       setMapOpen(false);
 
-      // Immediately check if opponent already guessed
+      // Immediately check if opponent already guessed (trigger resolves the round)
       await checkAndResolveGuesses(currentRound);
     },
-    [duelId, user, locations, currentRound, supabase, checkAndResolveGuesses]
+    [duelId, user, currentRound, supabase, checkAndResolveGuesses]
   );
 
   // ====== Step 6: Listen for guesses + poll fallback ======
@@ -555,10 +529,7 @@ export default function DuelGame({ code }: { code: string }) {
         timerAutoSubmittedRef.current = currentRound;
         hasSubmittedRef.current = true;
 
-        // Submit a dummy guess at 0,0 (will be ~max distance from most locations)
-        const location = locations[currentRound];
-        const distance = haversineDistance(location.lat, location.lng, 0, 0);
-
+        // Submit a dummy guess at 0,0 — trigger calculates the real distance
         supabase
           .from("duel_guesses")
           .insert({
@@ -567,10 +538,12 @@ export default function DuelGame({ code }: { code: string }) {
             round: currentRound,
             guess_lat: 0,
             guess_lng: 0,
-            distance_km: distance,
-            penalty: 0,
           })
-          .then(() => {
+          .then(({ error: timerInsertError }) => {
+            if (timerInsertError) {
+              hasSubmittedRef.current = false;
+              return;
+            }
             setPhase("waiting-opponent");
             setGuessTimer(null);
             checkAndResolveGuesses(currentRound);
@@ -670,6 +643,15 @@ export default function DuelGame({ code }: { code: string }) {
   useEffect(() => {
     if (phase === "waiting-next" && opponentReady && iReady) {
       advanceToNextRound();
+      return;
+    }
+
+    // Fallback: if stuck in waiting-next for 3s (broadcast lost), advance anyway
+    if (phase === "waiting-next" && iReady) {
+      const fallback = setTimeout(() => {
+        advanceToNextRound();
+      }, 3000);
+      return () => clearTimeout(fallback);
     }
   }, [phase, opponentReady, iReady, advanceToNextRound]);
 

@@ -75,7 +75,14 @@ export default function StreetView({ lat, lng }: StreetViewProps) {
             google.maps.event.trigger(panoramaRef.current!, "resize");
           }, 100);
 
-          setStatus("ok");
+          // Wait for tiles to actually load before hiding spinner
+          google.maps.event.addListenerOnce(
+            panoramaRef.current,
+            "tilesloaded",
+            () => setStatus("ok")
+          );
+          // Fallback: if tilesloaded doesn't fire within 5s, show anyway
+          setTimeout(() => setStatus("ok"), 5000);
         } else {
           setStatus("error");
         }
