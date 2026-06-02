@@ -27,26 +27,32 @@ score **above** the starting 10,000 — a flawless run is worth far more.
 ### Prerequisites
 
 - Node.js 18+
+- [pnpm](https://pnpm.io) (this project uses pnpm, not npm)
 - A [Google Maps API key](https://console.cloud.google.com/apis/credentials) with **Maps JavaScript API** and **Geocoding API** enabled
+- A [Supabase](https://supabase.com) project (for auth, leaderboard and Duel mode)
 
 ### Setup
 
 ```bash
 git clone https://github.com/Agusef22/geo-arena.git
 cd geo-arena
-npm install
+pnpm install
 ```
 
-Create a `.env.local` file in the root:
+Create a `.env.local` file in the root with the following variables (all
+`NEXT_PUBLIC_*`, so they ship to the browser — the anon key is meant to be
+public and is protected by Row Level Security):
 
 ```
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_api_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
 ### Run
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -54,8 +60,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Production build
 
 ```bash
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 ## Project structure
