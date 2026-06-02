@@ -9,9 +9,11 @@ You start with **10,000 points**. Each round drops you in a random Street View l
 - **Close guess** = small penalty (50km off costs ~3%)
 - **Far off** = big penalty (2,000km+ costs ~74%)
 - **Each round gets harder** = max penalty escalates from 2,500 to 5,000
+- **Nail it = bonus** = within 150m earns +5,000, within 75km earns +1,000
 - **Hit zero = Game Over** = you can die as early as round 3
 
-Survive all 5 rounds with points remaining to win.
+Survive all 5 rounds with points remaining to win. Bonuses can push your final
+score **above** the starting 10,000 — a flawless run is worth far more.
 
 ## Tech stack
 

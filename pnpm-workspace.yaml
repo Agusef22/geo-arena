@@ -1,0 +1,12 @@
+# Config de pnpm para este proyecto (pnpm 11+).
+# Hereda lo del global (~/.config/pnpm/config.yaml) y refuerza.
+
+minimumReleaseAge: 10080
+saveExact: true
+
+# Allowlist de paquetes a los que se les permite correr scripts
+# post-install. Verificá que el paquete y version sean legitimos
+# antes de agregar uno nuevo. true=permitido, false=denegado.
+allowBuilds:
+  sharp: true          # Next.js image optimization (binario nativo)
+  unrs-resolver: true  # eslint-config-next (resolver de paths)
