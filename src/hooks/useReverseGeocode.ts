@@ -2,14 +2,24 @@
 
 import { useEffect, useState } from "react";
 
+// Module-level cache: the same coordinates get geocoded repeatedly across
+// RoundResult / GameSummary rows / DuelRoundResult. Dedupe to save quota.
+const geocodeCache = new Map<string, string>();
+const cacheKey = (lat: number, lng: number) =>
+  `${lat.toFixed(5)},${lng.toFixed(5)}`;
+
 export function useReverseGeocode(lat: number, lng: number): string {
-  const [name, setName] = useState("...");
+  const key = cacheKey(lat, lng);
+  // Bump to re-render once an async geocode populates the cache.
+  const [, bump] = useState(0);
 
   useEffect(() => {
     if (!window.google) return;
+    if (geocodeCache.has(key)) return;
 
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      let resolved: string;
       if (status === "OK" && results && results.length > 0) {
         const locality = results.find((r) => r.types.includes("locality"));
         const admin = results.find((r) =>
@@ -41,12 +51,16 @@ export function useReverseGeocode(lat: number, lng: number): string {
           );
         }
 
-        setName(parts.filter(Boolean).join(", ") || "Unknown location");
+        resolved = parts.filter(Boolean).join(", ") || "Unknown location";
       } else {
-        setName("Unknown location");
+        resolved = "Unknown location";
       }
-    });
-  }, [lat, lng]);
 
-  return name;
+      geocodeCache.set(key, resolved);
+      bump((n) => n + 1);
+    });
+  }, [key, lat, lng]);
+
+  // Derived during render — no synchronous setState in the effect.
+  return geocodeCache.get(key) ?? "...";
 }

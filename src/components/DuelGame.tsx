@@ -67,6 +67,60 @@ function parseLocations(
   return locs.map((l, i) => ({ id: `loc-${i}`, lat: l.lat, lng: l.lng }));
 }
 
+interface DuelGuessRow {
+  player_id: string;
+  round: number;
+  distance_km: number;
+  guess_lat: number;
+  guess_lng: number;
+  penalty: number;
+}
+
+// Reconstruct the history of completed rounds from DB guesses.
+// A round is considered complete when both players have guessed.
+function buildRoundsHistory(
+  guesses: DuelGuessRow[],
+  userId: string,
+  locations: Location[]
+): DuelRoundData[] {
+  const byRound = new Map<number, DuelGuessRow[]>();
+  for (const g of guesses) {
+    if (!byRound.has(g.round)) byRound.set(g.round, []);
+    byRound.get(g.round)!.push(g);
+  }
+
+  const rounds: DuelRoundData[] = [];
+  const sortedRounds = Array.from(byRound.keys()).sort((a, b) => a - b);
+  for (const round of sortedRounds) {
+    const roundGuesses = byRound.get(round)!;
+    if (roundGuesses.length < 2) continue;
+
+    const myGuess = roundGuesses.find((g) => g.player_id === userId);
+    const oppGuess = roundGuesses.find((g) => g.player_id !== userId);
+    if (!myGuess || !oppGuess) continue;
+    if (!locations[round]) continue;
+
+    const totalPenalty = myGuess.penalty + oppGuess.penalty;
+    const isDraw =
+      totalPenalty === 0 &&
+      Math.abs(myGuess.distance_km - oppGuess.distance_km) < 5;
+    const iWon = !isDraw && myGuess.penalty === 0 && oppGuess.penalty > 0;
+
+    rounds.push({
+      location: locations[round],
+      myGuess: { lat: myGuess.guess_lat, lng: myGuess.guess_lng },
+      opponentGuess: { lat: oppGuess.guess_lat, lng: oppGuess.guess_lng },
+      myDistance: myGuess.distance_km,
+      opponentDistance: oppGuess.distance_km,
+      penalty: Math.max(myGuess.penalty, oppGuess.penalty),
+      iWon,
+      isDraw,
+    });
+  }
+
+  return rounds;
+}
+
 export default function DuelGame({ code }: { code: string }) {
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -100,12 +154,24 @@ export default function DuelGame({ code }: { code: string }) {
   const [guessTimer, setGuessTimer] = useState<number | null>(null);
   const timerAutoSubmittedRef = useRef(-1);
   // Auto-advance timer for result screen
-  const NEXT_ROUND_TIME_LIMIT = 10;
+  const NEXT_ROUND_TIME_LIMIT = 60;
   const [nextTimer, setNextTimer] = useState<number | null>(null);
 
   const me = players.find((p) => p.player_id === user?.id);
   const opponent = players.find((p) => p.player_id !== user?.id);
   const isHost = me?.is_host ?? false;
+
+  // Latest scores in refs so checkAndResolveGuesses can read them without
+  // listing myScore/opponentScore as deps (which would tear down and
+  // re-subscribe the realtime channel on every score change).
+  const myScoreRef = useRef(myScore);
+  const opponentScoreRef = useRef(opponentScore);
+  useEffect(() => {
+    myScoreRef.current = myScore;
+  }, [myScore]);
+  useEffect(() => {
+    opponentScoreRef.current = opponentScore;
+  }, [opponentScore]);
 
   // --- Helper: check and resolve guesses for a round ---
   // The DB trigger (resolve_duel_guess) calculates distance_km, penalty, and
@@ -138,8 +204,8 @@ export default function DuelGame({ code }: { code: string }) {
       const myPlayerData = playersData?.find((p) => p.player_id === user.id);
       const oppPlayerData = playersData?.find((p) => p.player_id !== user.id);
 
-      const newMyScore = myPlayerData?.score ?? myScore;
-      const newOpponentScore = oppPlayerData?.score ?? opponentScore;
+      const newMyScore = myPlayerData?.score ?? myScoreRef.current;
+      const newOpponentScore = oppPlayerData?.score ?? opponentScoreRef.current;
 
       // Determine round result from the penalty values the trigger set
       const totalPenalty = myGuessData.penalty + opponentGuessData.penalty;
@@ -162,13 +228,14 @@ export default function DuelGame({ code }: { code: string }) {
 
       setMyScore(newMyScore);
       setOpponentScore(newOpponentScore);
-      setRounds((prev) => [...prev, roundData]);
+      // Append round only if not already present (prevents duplicates on refresh)
+      setRounds((prev) => (prev.length > round ? prev : [...prev, roundData]));
       // Reset ready state for next round
       setIReady(false);
       setOpponentReady(false);
       setPhase("result");
     },
-    [duelId, user, myScore, opponentScore, locations, supabase]
+    [duelId, user, locations, supabase]
   );
 
   // --- Helper: fetch players ---
@@ -217,13 +284,15 @@ export default function DuelGame({ code }: { code: string }) {
   );
 
   // ====== Step 1: Connect and fetch initial state ======
+  // On mount (including after refresh), reconstruct the complete game state
+  // from the DB. The DB is the single source of truth.
   useEffect(() => {
     if (!user) return;
 
     async function init() {
       const { data: duel } = await supabase
         .from("duels")
-        .select("id, status, locations")
+        .select("id, status, locations, current_round")
         .eq("code", code)
         .single();
 
@@ -235,30 +304,78 @@ export default function DuelGame({ code }: { code: string }) {
 
       setDuelId(duel.id);
 
-      const { data: playersData } = await supabase
-        .from("duel_players")
-        .select("id, player_id, score, is_host, profiles(nickname, emoji)")
-        .eq("duel_id", duel.id);
+      // Fetch players and all guesses in parallel
+      const [playersResult, guessesResult] = await Promise.all([
+        supabase
+          .from("duel_players")
+          .select("id, player_id, score, is_host, profiles(nickname, emoji)")
+          .eq("duel_id", duel.id),
+        supabase
+          .from("duel_guesses")
+          .select("player_id, round, distance_km, guess_lat, guess_lng, penalty")
+          .eq("duel_id", duel.id)
+          .order("round", { ascending: true }),
+      ]);
 
-      if (playersData) {
-        const mapped = mapPlayers(playersData as Record<string, unknown>[]);
-        setPlayers(mapped);
+      if (!playersResult.data) return;
+      const mapped = mapPlayers(playersResult.data as Record<string, unknown>[]);
+      setPlayers(mapped);
 
-        if (
-          mapped.length >= 2 &&
-          duel.status === "playing" &&
-          duel.locations
-        ) {
-          const locs = parseLocations(
-            duel.locations as Array<{ lat: number; lng: number }>
-          );
-          setLocations(locs);
-          setPhase("playing");
-        } else if (mapped.length >= 2) {
-          setPhase("loading");
-        } else {
-          setPhase("waiting");
-        }
+      // Sync scores from DB (authoritative)
+      const meData = mapped.find((p) => p.player_id === user!.id);
+      const oppData = mapped.find((p) => p.player_id !== user!.id);
+      if (meData) setMyScore(meData.score);
+      if (oppData) setOpponentScore(oppData.score);
+
+      // Waiting for opponent to join
+      if (mapped.length < 2) {
+        setPhase("waiting");
+        return;
+      }
+
+      // Locations not ready yet (host still generating)
+      if (duel.status !== "playing" || !duel.locations) {
+        setPhase("loading");
+        return;
+      }
+
+      // Game is in progress — reconstruct everything
+      const locs = parseLocations(
+        duel.locations as Array<{ lat: number; lng: number }>
+      );
+      setLocations(locs);
+
+      const guesses = (guessesResult.data ?? []) as DuelGuessRow[];
+
+      // Rebuild completed rounds history so refreshing doesn't lose it
+      const history = buildRoundsHistory(guesses, user!.id, locs);
+      setRounds(history);
+      // Mark already-resolved rounds so checkAndResolveGuesses doesn't re-add them
+      roundResolvedRef.current = history.length - 1;
+
+      // Use DB's current_round if available (trigger-maintained),
+      // otherwise fall back to inferring from history
+      const currentR = duel.current_round ?? history.length;
+      setCurrentRound(currentR);
+
+      // Game over
+      if (duel.status === "finished" || currentR >= DUEL_ROUNDS) {
+        setPhase("summary");
+        return;
+      }
+
+      // Determine playing state for the current round
+      const currentRoundGuesses = guesses.filter((g) => g.round === currentR);
+      const myGuess = currentRoundGuesses.find(
+        (g) => g.player_id === user!.id
+      );
+
+      if (myGuess) {
+        // I already guessed in this round — wait for opponent
+        hasSubmittedRef.current = true;
+        setPhase("waiting-opponent");
+      } else {
+        setPhase("playing");
       }
     }
 
@@ -393,9 +510,17 @@ export default function DuelGame({ code }: { code: string }) {
       if (ready) setPhase("countdown");
     }, 2000);
 
+    // Give up if the host never produces locations (e.g. they abandoned
+    // mid-generation). Without this the guest waits forever.
+    const giveUp = setTimeout(() => {
+      setError("The host took too long or left. Try another game.");
+      setPhase("error");
+    }, 45000);
+
     return () => {
       supabase.removeChannel(channel);
       clearInterval(poll);
+      clearTimeout(giveUp);
     };
   }, [phase, isHost, duelId, supabase, checkLocations]);
 
