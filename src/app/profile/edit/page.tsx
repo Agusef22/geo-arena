@@ -21,16 +21,21 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // Track which profile we've already seeded the form from, so we can sync
+  // the inputs when the profile arrives without a setState-in-effect.
+  const [seededProfileId, setSeededProfileId] = useState<string | null>(null);
+
+  if (profile && profile.id !== seededProfileId) {
+    setSeededProfileId(profile.id);
+    setNickname(profile.nickname);
+    setEmoji(profile.emoji);
+  }
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace("/login");
     }
-    if (profile) {
-      setNickname(profile.nickname);
-      setEmoji(profile.emoji);
-    }
-  }, [authLoading, user, profile, router]);
+  }, [authLoading, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

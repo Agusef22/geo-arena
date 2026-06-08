@@ -6,7 +6,6 @@ import {
   useEffect,
   useState,
   useCallback,
-  useRef,
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -38,9 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Single Supabase client instance for the lifetime of the provider
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  // Single Supabase client instance for the lifetime of the provider.
+  // useState's lazy initializer runs once and returns a stable reference.
+  const [supabase] = useState(() => createClient());
 
   const fetchProfile = useCallback(
     async (userId: string) => {

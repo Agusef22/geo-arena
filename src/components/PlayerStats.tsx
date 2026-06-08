@@ -29,10 +29,9 @@ export default function PlayerStatsCard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    // When logged out the component renders null anyway, so we only need to
+    // resolve the loading state once we actually have a user to fetch for.
+    if (!user) return;
     getPlayerStats(user.id).then((data) => {
       setStats(data);
       setLoading(false);

@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Script from "next/script";
 import Game from "@/components/Game";
 
 export default function PlayPage() {
-  const [mapsLoaded, setMapsLoaded] = useState(false);
-
-  useEffect(() => {
-    if (window.google?.maps) {
-      setMapsLoaded(true);
-    }
-  }, []);
+  // Lazy init: if the Maps script is already on the page (e.g. client-side
+  // navigation from another map route), skip the loading state entirely.
+  const [mapsLoaded, setMapsLoaded] = useState(
+    () => typeof window !== "undefined" && !!window.google?.maps
+  );
 
   if (!mapsLoaded) {
     return (

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { formatDistance } from "@/lib/game";
-import { DUEL_STARTING_SCORE } from "@/lib/duel";
 import { useReverseGeocode } from "@/hooks/useReverseGeocode";
 import { createPinIcon } from "@/lib/map-utils";
 import type { Location } from "@/lib/locations";
