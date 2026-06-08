@@ -20,7 +20,7 @@ import {
 } from "@/lib/game";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
-import { saveGameResult } from "@/lib/supabase/game-results";
+import { startClassicGame, submitClassicGame } from "@/lib/supabase/game-results";
 
 type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
 
@@ -34,6 +34,9 @@ export default function Game() {
   const [displayedScore, setDisplayedScore] = useState(STARTING_SCORE);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
   const savedRef = useRef(false);
+  // Id of the server-side game session (logged-in players only). Null for
+  // anonymous/fallback games, which aren't saved.
+  const gameIdRef = useRef<string | null>(null);
   const { playGood, playBad, playNext } = useSoundEffects();
   const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
 
@@ -51,16 +54,29 @@ export default function Game() {
       svServiceRef.current = new google.maps.StreetViewService();
     }
 
-    // Prefer the curated pool: instant, always official, never fails.
-    let locs = await getRandomPoolLocations(ROUNDS_PER_GAME);
+    let gameId: string | null = null;
+    let locs: Location[] = [];
 
-    // Fallback to a live search if the pool isn't seeded yet (or is too small).
+    // Logged-in: open a server-authoritative session — the server stores the
+    // locations and scores them on submit, so the result can't be forged.
+    const session = await startClassicGame(ROUNDS_PER_GAME);
+    if (session) {
+      gameId = session.gameId;
+      locs = session.locations;
+    }
+
+    // Anonymous (or session failed): play an unsaved game. Prefer the curated
+    // pool; fall back to a live search if it isn't seeded yet.
     if (locs.length < ROUNDS_PER_GAME) {
-      locs = await findGameLocations(
-        svServiceRef.current,
-        ROUNDS_PER_GAME,
-        setLoadProgress
-      );
+      gameId = null;
+      locs = await getRandomPoolLocations(ROUNDS_PER_GAME);
+      if (locs.length < ROUNDS_PER_GAME) {
+        locs = await findGameLocations(
+          svServiceRef.current,
+          ROUNDS_PER_GAME,
+          setLoadProgress
+        );
+      }
     }
 
     if (locs.length < ROUNDS_PER_GAME) {
@@ -68,6 +84,7 @@ export default function Game() {
       return;
     }
 
+    gameIdRef.current = gameId;
     setLocations(locs);
     setCurrentRound(0);
     setRounds([]);
@@ -143,12 +160,20 @@ export default function Game() {
     const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
     const scoreAfter = Math.max(0, STARTING_SCORE - totalPenalty + totalBonus);
 
+    // Save by submitting guesses to the server, which scores them against the
+    // locations it stored. Fire-and-forget; only saved for logged-in sessions.
+    const submit = () => {
+      if (!gameIdRef.current) return;
+      const guesses = rounds.map((r) => ({ lat: r.guessLat, lng: r.guessLng }));
+      submitClassicGame(gameIdRef.current, guesses);
+    };
+
     // Hard stop: game over if score hit 0
     if (scoreAfter <= 0) {
       setPhase("gameover");
       if (!savedRef.current) {
         savedRef.current = true;
-        saveGameResult({ score: 0, rounds, gameOver: true });
+        submit();
       }
       return;
     }
@@ -157,7 +182,7 @@ export default function Game() {
       setPhase("summary");
       if (!savedRef.current) {
         savedRef.current = true;
-        saveGameResult({ score: scoreAfter, rounds, gameOver: false });
+        submit();
       }
     } else {
       setCurrentRound((r) => r + 1);

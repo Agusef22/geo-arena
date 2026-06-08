@@ -1,60 +1,69 @@
 import { createClient } from "./client";
-import type { RoundData } from "@/lib/types";
+import type { Location } from "@/lib/locations";
 
-export async function saveGameResult({
-  score,
-  rounds,
-  gameOver,
-}: {
-  score: number;
-  rounds: RoundData[];
-  gameOver: boolean;
-}) {
+/**
+ * Start a server-authoritative classic game. The server picks and stores the
+ * locations, so the score can't be forged on submit. Returns the game id (to
+ * submit guesses against) plus the locations to render. Returns null when the
+ * player isn't logged in or the RPC fails — callers then fall back to an
+ * unsaved game via getRandomPoolLocations.
+ */
+export async function startClassicGame(
+  count: number
+): Promise<{ gameId: string; locations: Location[] } | null> {
   const supabase = createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  // Not logged in — skip silently (game works without auth)
   if (!user) return null;
 
-  const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
-  const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
+  const { data, error } = await supabase.rpc("start_classic_game", {
+    n: count,
+  });
+  if (error || !data || data.length === 0) return null;
 
-  // Serialize rounds without the full Location object (just lat/lng)
-  const roundsSerialized = rounds.map((r) => ({
-    lat: r.location.lat,
-    lng: r.location.lng,
-    guessLat: r.guessLat,
-    guessLng: r.guessLng,
-    distance: r.distance,
-    penalty: r.penalty,
-    penaltyRatio: r.penaltyRatio,
-    maxPenalty: r.maxPenalty,
-    bonus: r.bonus,
+  const row = data[0] as {
+    game_id: string;
+    locations: Array<{
+      lat: number;
+      lng: number;
+      pano?: string;
+      heading?: number;
+    }>;
+  };
+
+  const locations: Location[] = (row.locations ?? []).map((l, i) => ({
+    id: `loc-${i}`,
+    lat: l.lat,
+    lng: l.lng,
+    panoId: l.pano,
+    heading: l.heading,
   }));
 
-  const { data, error } = await supabase
-    .from("game_results")
-    .insert({
-      player_id: user.id,
-      mode: "classic",
-      score,
-      game_over: gameOver,
-      rounds_played: rounds.length,
-      total_penalty: totalPenalty,
-      total_bonus: totalBonus,
-      rounds: roundsSerialized,
-    })
-    .select("id")
-    .single();
+  if (locations.length < count) return null;
+  return { gameId: row.game_id, locations };
+}
 
-  if (error) {
-    return null;
-  }
+/**
+ * Submit a classic game's guesses. The server scores them against the
+ * locations it stored for this game and records the result. `guesses` are in
+ * round order (length may be < the game's rounds if the player got a game
+ * over). Returns the authoritative score, or null on failure.
+ */
+export async function submitClassicGame(
+  gameId: string,
+  guesses: { lat: number; lng: number }[]
+): Promise<number | null> {
+  const supabase = createClient();
 
-  return data.id;
+  const { data, error } = await supabase.rpc("submit_classic_game", {
+    p_game_id: gameId,
+    p_guesses: guesses,
+  });
+  if (error) return null;
+
+  return data as number;
 }
 
 export interface LeaderboardEntry {
