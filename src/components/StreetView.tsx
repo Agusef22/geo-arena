@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Compass from "./Compass";
 
 interface StreetViewProps {
   lat: number;
@@ -25,6 +26,9 @@ export default function StreetView({
   const startPositionRef = useRef<google.maps.LatLng | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [moved, setMoved] = useState(false);
+  // Live POV heading (degrees, 0 = North) driving the compass. Seeded with the
+  // initial heading so the bar is correct before the first pov_changed.
+  const [facing, setFacing] = useState(heading);
 
   useEffect(() => {
     if (!containerRef.current || !window.google) return;
@@ -33,6 +37,9 @@ export default function StreetView({
     // clear pending timers so a stale fallback can't reveal the next round.
     let cancelled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
+    // rAF-throttled compass updates: pov_changed fires rapidly while dragging,
+    // so we coalesce to at most one setState per frame.
+    let rafId: number | null = null;
     const reveal = () => {
       if (!cancelled) setStatus("ok");
     };
@@ -51,6 +58,7 @@ export default function StreetView({
 
     const renderPano = (latLng: google.maps.LatLng) => {
       startPositionRef.current = latLng;
+      setFacing(heading);
 
       panoramaRef.current = new google.maps.StreetViewPanorama(
         containerRef.current!,
@@ -85,6 +93,16 @@ export default function StreetView({
           const dLng = Math.abs(pos.lng() - startPositionRef.current.lng());
           setMoved(dLat > 0.0001 || dLng > 0.0001);
         }
+      });
+
+      // Feed the live heading to the compass, throttled to one update per frame.
+      panoramaRef.current.addListener("pov_changed", () => {
+        if (cancelled || rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const pov = panoramaRef.current?.getPov();
+          if (pov) setFacing(pov.heading);
+        });
       });
 
       timers.push(
@@ -141,6 +159,7 @@ export default function StreetView({
     return () => {
       cancelled = true;
       timers.forEach(clearTimeout);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       if (panoramaRef.current) {
         panoramaRef.current.setVisible(false);
         panoramaRef.current = null;
@@ -159,6 +178,9 @@ export default function StreetView({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full bg-zinc-900" />
+
+      {/* Compass bar — reflects where the camera is looking */}
+      {status === "ok" && <Compass heading={facing} />}
 
       {/* Return to start button */}
       {moved && status === "ok" && (
