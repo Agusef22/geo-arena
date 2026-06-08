@@ -6,7 +6,8 @@ import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
 import RoundResult from "./RoundResult";
 import GameSummary from "./GameSummary";
-import { findStreetViewLocation, type Location } from "@/lib/locations";
+import { findGameLocations, type Location } from "@/lib/locations";
+import { getRandomPoolLocations } from "@/lib/supabase/pool";
 import type { RoundData } from "@/lib/types";
 import {
   haversineDistance,
@@ -31,7 +32,6 @@ export default function Game() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
   const [displayedScore, setDisplayedScore] = useState(STARTING_SCORE);
-  const streetViewKeyRef = useRef(0);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
   const savedRef = useRef(false);
   const { playGood, playBad, playNext } = useSoundEffects();
@@ -51,33 +51,16 @@ export default function Game() {
       svServiceRef.current = new google.maps.StreetViewService();
     }
 
-    const locs: Location[] = [];
-    let attempts = 0;
-    const maxAttempts = ROUNDS_PER_GAME * 15;
+    // Prefer the curated pool: instant, always official, never fails.
+    let locs = await getRandomPoolLocations(ROUNDS_PER_GAME);
 
-    while (locs.length < ROUNDS_PER_GAME && attempts < maxAttempts) {
-      const promises = Array.from({ length: 5 }, () =>
-        findStreetViewLocation(svServiceRef.current!)
+    // Fallback to a live search if the pool isn't seeded yet (or is too small).
+    if (locs.length < ROUNDS_PER_GAME) {
+      locs = await findGameLocations(
+        svServiceRef.current,
+        ROUNDS_PER_GAME,
+        setLoadProgress
       );
-
-      const results = await Promise.all(promises);
-
-      for (const result of results) {
-        if (result && locs.length < ROUNDS_PER_GAME) {
-          const tooClose = locs.some((existing) => {
-            const dLat = existing.lat - result.lat;
-            const dLng = existing.lng - result.lng;
-            return Math.sqrt(dLat * dLat + dLng * dLng) < 0.5;
-          });
-
-          if (!tooClose) {
-            locs.push(result);
-            setLoadProgress(locs.length);
-          }
-        }
-      }
-
-      attempts += 5;
     }
 
     if (locs.length < ROUNDS_PER_GAME) {
@@ -91,11 +74,14 @@ export default function Game() {
     setDisplayedScore(STARTING_SCORE);
     setPhase("playing");
     setMapOpen(false);
-    streetViewKeyRef.current += 1;
     savedRef.current = false;
   }, []);
 
   useEffect(() => {
+    // Intentional: kick off the async location search on mount. loadLocations
+    // sets "loading" state synchronously, which the rule flags, but firing a
+    // load once on mount is exactly what this effect is for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadLocations();
   }, [loadLocations]);
 
@@ -177,7 +163,6 @@ export default function Game() {
       setCurrentRound((r) => r + 1);
       setPhase("playing");
       setMapOpen(false);
-      streetViewKeyRef.current += 1;
       setDisplayedScore(scoreAfter);
     }
   }, [currentRound, rounds, playNext]);
@@ -333,9 +318,10 @@ export default function Game() {
       {/* Street View */}
       <div className="absolute inset-0">
         <StreetView
-          key={`${currentLocation.id}-${streetViewKeyRef.current}`}
+          key={`${currentLocation.id}-${currentRound}`}
           lat={currentLocation.lat}
           lng={currentLocation.lng}
+          heading={currentLocation.heading}
         />
       </div>
 

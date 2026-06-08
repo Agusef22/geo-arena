@@ -1,0 +1,21 @@
+{
+  "countries": {
+    "ES": 100, "FR": 100, "IT": 100, "DE": 100, "GB": 100, "NL": 100, "SE": 100, "PL": 100,
+    "US": 100, "CA": 100, "MX": 100,
+    "BR": 100, "AR": 100, "CL": 100, "CO": 100,
+    "JP": 100, "KR": 100, "TH": 100, "ID": 100, "TW": 100,
+    "AU": 100, "NZ": 100,
+    "ZA": 100, "KE": 100, "GH": 100
+  },
+  "panoVerificationStrategy": "Newest",
+  "output": {
+    "panoIdCountryCodes": [
+      "ES","FR","IT","DE","GB","NL","SE","PL",
+      "US","CA","MX",
+      "BR","AR","CL","CO",
+      "JP","KR","TH","ID","TW",
+      "AU","NZ",
+      "ZA","KE","GH"
+    ]
+  }
+}

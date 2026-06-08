@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import Script from "next/script";
 import DuelGame from "@/components/DuelGame";
 
@@ -10,13 +10,10 @@ export default function DuelGamePage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = use(params);
-  const [mapsLoaded, setMapsLoaded] = useState(false);
-
-  useEffect(() => {
-    if (window.google?.maps) {
-      setMapsLoaded(true);
-    }
-  }, []);
+  // Lazy init: skip the loading state if the Maps script is already loaded.
+  const [mapsLoaded, setMapsLoaded] = useState(
+    () => typeof window !== "undefined" && !!window.google?.maps
+  );
 
   if (!mapsLoaded) {
     return (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +8,8 @@ import {
   DUEL_STARTING_SCORE,
   DUEL_ROUNDS,
 } from "@/lib/duel";
-import { findStreetViewLocation, type Location } from "@/lib/locations";
+import { findGameLocations, type Location } from "@/lib/locations";
+import { getRandomPoolLocations } from "@/lib/supabase/pool";
 import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
 import DuelRoundResult from "./DuelRoundResult";
@@ -62,9 +62,15 @@ function mapPlayers(data: Record<string, unknown>[]): DuelPlayer[] {
 }
 
 function parseLocations(
-  locs: Array<{ lat: number; lng: number }>
+  locs: Array<{ lat: number; lng: number; pano?: string; heading?: number }>
 ): Location[] {
-  return locs.map((l, i) => ({ id: `loc-${i}`, lat: l.lat, lng: l.lng }));
+  return locs.map((l, i) => ({
+    id: `loc-${i}`,
+    lat: l.lat,
+    lng: l.lng,
+    panoId: l.pano,
+    heading: l.heading,
+  }));
 }
 
 interface DuelGuessRow {
@@ -122,10 +128,10 @@ function buildRoundsHistory(
 }
 
 export default function DuelGame({ code }: { code: string }) {
-  const router = useRouter();
-  const { user, profile } = useAuth();
-  const supabaseRef = useRef(createClient());
-  const supabase = supabaseRef.current;
+  const { user } = useAuth();
+  // useState's lazy initializer creates one stable client for the component's
+  // lifetime (reading a ref during render is disallowed by react-hooks).
+  const [supabase] = useState(() => createClient());
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [duelId, setDuelId] = useState<string | null>(null);
@@ -140,7 +146,6 @@ export default function DuelGame({ code }: { code: string }) {
   const [loadProgress, setLoadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const streetViewKeyRef = useRef(0);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
   const hasSubmittedRef = useRef(false);
   // Prevent resolveRound from running twice
@@ -432,30 +437,14 @@ export default function DuelGame({ code }: { code: string }) {
       }
       if (!svServiceRef.current) return;
 
-      const locs: Location[] = [];
-      let attempts = 0;
-      const maxAttempts = DUEL_ROUNDS * 15;
-
-      while (locs.length < DUEL_ROUNDS && attempts < maxAttempts) {
-        const promises = Array.from({ length: 5 }, () =>
-          findStreetViewLocation(svServiceRef.current!)
+      // Prefer the curated pool; fall back to a live search if not seeded yet.
+      let locs = await getRandomPoolLocations(DUEL_ROUNDS);
+      if (locs.length < DUEL_ROUNDS) {
+        locs = await findGameLocations(
+          svServiceRef.current,
+          DUEL_ROUNDS,
+          setLoadProgress
         );
-        const results = await Promise.all(promises);
-
-        for (const result of results) {
-          if (result && locs.length < DUEL_ROUNDS) {
-            const tooClose = locs.some((existing) => {
-              const dLat = existing.lat - result.lat;
-              const dLng = existing.lng - result.lng;
-              return Math.sqrt(dLat * dLat + dLng * dLng) < 0.5;
-            });
-            if (!tooClose) {
-              locs.push(result);
-              setLoadProgress(locs.length);
-            }
-          }
-        }
-        attempts += 5;
       }
 
       if (locs.length < DUEL_ROUNDS) {
@@ -464,7 +453,12 @@ export default function DuelGame({ code }: { code: string }) {
         return;
       }
 
-      const locationsJson = locs.map((l) => ({ lat: l.lat, lng: l.lng }));
+      const locationsJson = locs.map((l) => ({
+        lat: l.lat,
+        lng: l.lng,
+        pano: l.panoId,
+        heading: l.heading,
+      }));
       await supabase
         .from("duels")
         .update({ locations: locationsJson, status: "playing" })
@@ -528,13 +522,14 @@ export default function DuelGame({ code }: { code: string }) {
   useEffect(() => {
     if (phase !== "countdown") return;
 
+    // Intentional: reset the countdown each time we enter the countdown phase.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(interval);
           setPhase("playing");
-          streetViewKeyRef.current += 1;
           return 0;
         }
         return c - 1;
@@ -693,6 +688,18 @@ export default function DuelGame({ code }: { code: string }) {
     checkAndResolveGuesses,
   ]);
 
+  // Actually advance to next round (called when both are ready).
+  // Declared before handleNext because handleNext references it.
+  const advanceToNextRound = useCallback(() => {
+    hasSubmittedRef.current = false;
+    setIReady(false);
+    setOpponentReady(false);
+    setGuessTimer(null);
+    setCurrentRound((r) => r + 1);
+    setPhase("playing");
+    setMapOpen(false);
+  }, []);
+
   // ====== Handle next round (player presses button) ======
   const handleNext = useCallback(async () => {
     // Final round or game over → go directly to summary
@@ -725,19 +732,16 @@ export default function DuelGame({ code }: { code: string }) {
     } else {
       setPhase("waiting-next");
     }
-  }, [currentRound, myScore, opponentScore, duelId, supabase, user, opponentReady]);
-
-  // Actually advance to next round (called when both are ready)
-  const advanceToNextRound = useCallback(() => {
-    hasSubmittedRef.current = false;
-    setIReady(false);
-    setOpponentReady(false);
-    setGuessTimer(null);
-    setCurrentRound((r) => r + 1);
-    setPhase("playing");
-    setMapOpen(false);
-    streetViewKeyRef.current += 1;
-  }, []);
+  }, [
+    currentRound,
+    myScore,
+    opponentScore,
+    duelId,
+    supabase,
+    user,
+    opponentReady,
+    advanceToNextRound,
+  ]);
 
   // ====== Step 7: Broadcast channel for ready sync ======
   useEffect(() => {
@@ -767,6 +771,8 @@ export default function DuelGame({ code }: { code: string }) {
   // When opponent becomes ready while I'm already waiting
   useEffect(() => {
     if (phase === "waiting-next" && opponentReady && iReady) {
+      // Intentional: both players ready → advance immediately.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       advanceToNextRound();
       return;
     }
@@ -783,11 +789,14 @@ export default function DuelGame({ code }: { code: string }) {
   // ====== Step 8: Auto-advance timer on result screen ======
   // Start the timer when result phase begins
   useEffect(() => {
+    // Intentional: arm/disarm the auto-advance timer on phase transitions.
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (phase === "result") {
       setNextTimer(NEXT_ROUND_TIME_LIMIT);
     } else if (phase !== "waiting-next") {
       setNextTimer(null);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [phase]);
 
   // Tick down and auto-advance when timer hits 0
@@ -796,8 +805,9 @@ export default function DuelGame({ code }: { code: string }) {
     if (phase !== "result" && phase !== "waiting-next") return;
 
     if (nextTimer <= 0) {
-      // Auto-press "Next Round"
+      // Auto-press "Next Round" when the timer runs out.
       if (!iReady) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         handleNext();
       }
       return;
@@ -1025,9 +1035,10 @@ export default function DuelGame({ code }: { code: string }) {
     <div className="relative h-[100dvh] w-screen overflow-hidden bg-black">
       <div className="absolute inset-0">
         <StreetView
-          key={`duel-${currentRound}-${streetViewKeyRef.current}`}
+          key={`duel-${currentRound}`}
           lat={currentLocation.lat}
           lng={currentLocation.lng}
+          heading={currentLocation.heading}
         />
       </div>
 
@@ -1085,8 +1096,9 @@ export default function DuelGame({ code }: { code: string }) {
         </div>
       </div>
 
-      {/* Timer banner */}
-      {guessTimer !== null && !hasSubmittedRef.current && (
+      {/* Timer banner — only rendered in the "playing" phase; once a guess is
+          submitted the phase changes and this block unmounts. */}
+      {guessTimer !== null && (
         <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-10">
           <div
             className={`backdrop-blur-sm rounded-full px-5 py-2.5 flex items-center gap-2.5 shadow-lg border ${

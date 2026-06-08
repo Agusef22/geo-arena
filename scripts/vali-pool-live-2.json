@@ -1,0 +1,17 @@
+{
+  "countries": {
+    "PT": 100, "IE": 100, "CH": 100, "AT": 100, "BE": 100, "DK": 100, "NO": 100, "FI": 100, "CZ": 100, "HU": 100, "RO": 100, "GR": 100,
+    "MY": 100, "SG": 100, "PH": 100, "IN": 100, "LK": 100, "IL": 100, "TR": 100, "HK": 100,
+    "PE": 100, "EC": 100, "UY": 100, "GT": 100, "CR": 100, "DO": 100,
+    "NG": 100, "SN": 100, "UG": 100, "BW": 100
+  },
+  "panoVerificationStrategy": "Newest",
+  "output": {
+    "panoIdCountryCodes": [
+      "PT","IE","CH","AT","BE","DK","NO","FI","CZ","HU","RO","GR",
+      "MY","SG","PH","IN","LK","IL","TR","HK",
+      "PE","EC","UY","GT","CR","DO",
+      "NG","SN","UG","BW"
+    ]
+  }
+}
