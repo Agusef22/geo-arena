@@ -5,12 +5,21 @@ import { useEffect, useRef, useState, useCallback } from "react";
 interface StreetViewProps {
   lat: number;
   lng: number;
+  // Exact panorama id from the curated pool. When present we load this precise
+  // validated panorama (deterministic, no re-search, no drift). Live-searched
+  // locations don't have one, so we fall back to a coordinate lookup.
+  panoId?: string;
   // Initial camera heading (degrees) facing down the road. Comes from the
   // curated pool; defaults to 0 for live-searched locations.
   heading?: number;
 }
 
-export default function StreetView({ lat, lng, heading = 0 }: StreetViewProps) {
+export default function StreetView({
+  lat,
+  lng,
+  panoId,
+  heading = 0,
+}: StreetViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const startPositionRef = useRef<google.maps.LatLng | null>(null);
@@ -29,85 +38,105 @@ export default function StreetView({ lat, lng, heading = 0 }: StreetViewProps) {
     };
 
     const sv = new google.maps.StreetViewService();
-    sv.getPanorama(
-      {
-        location: { lat, lng },
-        // The location was already validated and snapped to a real OUTDOOR
-        // panorama by findGameLocations, so a tight radius keeps the panorama
-        // we display aligned with the coordinate the round is scored against.
-        radius: 50,
-        preference: google.maps.StreetViewPreference.NEAREST,
-        source: google.maps.StreetViewSource.OUTDOOR,
-      },
-      (data, svStatus) => {
+
+    // Look up the nearest OUTDOOR panorama by coordinate. Used for live-searched
+    // locations, and as a fallback when a pooled pano id is gone (rare: Google
+    // occasionally retires panoramas), so a stale id never bricks a round.
+    const coordinateRequest: google.maps.StreetViewLocationRequest = {
+      location: { lat, lng },
+      radius: 50,
+      preference: google.maps.StreetViewPreference.NEAREST,
+      source: google.maps.StreetViewSource.OUTDOOR,
+    };
+
+    const renderPano = (latLng: google.maps.LatLng) => {
+      startPositionRef.current = latLng;
+
+      panoramaRef.current = new google.maps.StreetViewPanorama(
+        containerRef.current!,
+        {
+          position: latLng,
+          pov: { heading, pitch: 0 },
+          zoom: 1,
+          addressControl: false,
+          showRoadLabels: false,
+          linksControl: true,
+          panControl: false,
+          zoomControl: false,
+          enableCloseButton: false,
+          fullscreenControl: false,
+        }
+      );
+
+      // Detect when user moves from start
+      panoramaRef.current.addListener("position_changed", () => {
+        if (!panoramaRef.current || !startPositionRef.current) return;
+        const pos = panoramaRef.current.getPosition();
+        if (!pos) return;
+        const dist = google.maps.geometry?.spherical?.computeDistanceBetween?.(
+          pos,
+          startPositionRef.current
+        );
+        // If geometry lib not loaded, just check lat/lng diff
+        if (dist !== undefined) {
+          setMoved(dist > 10);
+        } else {
+          const dLat = Math.abs(pos.lat() - startPositionRef.current.lat());
+          const dLng = Math.abs(pos.lng() - startPositionRef.current.lng());
+          setMoved(dLat > 0.0001 || dLng > 0.0001);
+        }
+      });
+
+      timers.push(
+        setTimeout(() => {
+          if (!cancelled && panoramaRef.current) {
+            google.maps.event.trigger(panoramaRef.current, "resize");
+          }
+        }, 100)
+      );
+
+      // Keep the spinner up until the tiles have actually rendered, so the
+      // player never sees a half-loaded black panorama.
+      google.maps.event.addListenerOnce(
+        panoramaRef.current,
+        "tilesloaded",
+        reveal
+      );
+      // Last-resort safety net: if tilesloaded never fires (rare), reveal
+      // anyway after a generous wait rather than spin forever. The dark
+      // container background keeps any brief gap from flashing pure black.
+      timers.push(setTimeout(reveal, 10000));
+    };
+
+    const handle = (allowFallback: boolean) =>
+      (
+        data: google.maps.StreetViewPanoramaData | null,
+        svStatus: google.maps.StreetViewStatus
+      ) => {
         if (cancelled) return;
 
         if (
           svStatus === google.maps.StreetViewStatus.OK &&
           data?.location?.latLng
         ) {
-          startPositionRef.current = data.location.latLng;
-
-          panoramaRef.current = new google.maps.StreetViewPanorama(
-            containerRef.current!,
-            {
-              position: data.location.latLng,
-              pov: { heading, pitch: 0 },
-              zoom: 1,
-              addressControl: false,
-              showRoadLabels: false,
-              linksControl: true,
-              panControl: false,
-              zoomControl: false,
-              enableCloseButton: false,
-              fullscreenControl: false,
-            }
-          );
-
-          // Detect when user moves from start
-          panoramaRef.current.addListener("position_changed", () => {
-            if (!panoramaRef.current || !startPositionRef.current) return;
-            const pos = panoramaRef.current.getPosition();
-            if (!pos) return;
-            const dist =
-              google.maps.geometry?.spherical?.computeDistanceBetween?.(
-                pos,
-                startPositionRef.current
-              );
-            // If geometry lib not loaded, just check lat/lng diff
-            if (dist !== undefined) {
-              setMoved(dist > 10);
-            } else {
-              const dLat = Math.abs(pos.lat() - startPositionRef.current.lat());
-              const dLng = Math.abs(pos.lng() - startPositionRef.current.lng());
-              setMoved(dLat > 0.0001 || dLng > 0.0001);
-            }
-          });
-
-          timers.push(
-            setTimeout(() => {
-              if (!cancelled && panoramaRef.current) {
-                google.maps.event.trigger(panoramaRef.current, "resize");
-              }
-            }, 100)
-          );
-
-          // Keep the spinner up until the tiles have actually rendered, so the
-          // player never sees a half-loaded black panorama.
-          google.maps.event.addListenerOnce(
-            panoramaRef.current,
-            "tilesloaded",
-            reveal
-          );
-          // Last-resort safety net: if tilesloaded never fires (rare), reveal
-          // anyway after a generous wait rather than spin forever. The dark
-          // container background keeps any brief gap from flashing pure black.
-          timers.push(setTimeout(reveal, 10000));
+          renderPano(data.location.latLng);
+        } else if (allowFallback) {
+          // The pooled pano id didn't resolve — retry by coordinate.
+          sv.getPanorama(coordinateRequest, handle(false));
         } else {
-          if (!cancelled) setStatus("error");
+          setStatus("error");
         }
-      }
-    );
+      };
+
+    // With a pooled pano id, load that exact panorama — deterministic and
+    // faster (no search). Otherwise look it up by coordinate (the point was
+    // already snapped to a real OUTDOOR panorama, so the displayed view stays
+    // aligned with the coordinate the round is scored against).
+    if (panoId) {
+      sv.getPanorama({ pano: panoId }, handle(true));
+    } else {
+      sv.getPanorama(coordinateRequest, handle(false));
+    }
 
     return () => {
       cancelled = true;
@@ -117,7 +146,7 @@ export default function StreetView({ lat, lng, heading = 0 }: StreetViewProps) {
         panoramaRef.current = null;
       }
     };
-  }, [lat, lng, heading]);
+  }, [lat, lng, panoId, heading]);
 
   const handleReturnToStart = useCallback(() => {
     if (panoramaRef.current && startPositionRef.current) {

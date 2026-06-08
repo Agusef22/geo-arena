@@ -1038,6 +1038,7 @@ export default function DuelGame({ code }: { code: string }) {
           key={`duel-${currentRound}`}
           lat={currentLocation.lat}
           lng={currentLocation.lng}
+          panoId={currentLocation.panoId}
           heading={currentLocation.heading}
         />
       </div>

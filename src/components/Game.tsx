@@ -321,6 +321,7 @@ export default function Game() {
           key={`${currentLocation.id}-${currentRound}`}
           lat={currentLocation.lat}
           lng={currentLocation.lng}
+          panoId={currentLocation.panoId}
           heading={currentLocation.heading}
         />
       </div>
