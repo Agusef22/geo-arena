@@ -5,9 +5,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 interface StreetViewProps {
   lat: number;
   lng: number;
+  // Initial camera heading (degrees) facing down the road. Comes from the
+  // curated pool; defaults to 0 for live-searched locations.
+  heading?: number;
 }
 
-export default function StreetView({ lat, lng }: StreetViewProps) {
+export default function StreetView({ lat, lng, heading = 0 }: StreetViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const startPositionRef = useRef<google.maps.LatLng | null>(null);
@@ -17,18 +20,28 @@ export default function StreetView({ lat, lng }: StreetViewProps) {
   useEffect(() => {
     if (!containerRef.current || !window.google) return;
 
-    setStatus("loading");
-    setMoved(false);
+    // Guards against setState / DOM work after the round unmounts, and lets us
+    // clear pending timers so a stale fallback can't reveal the next round.
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const reveal = () => {
+      if (!cancelled) setStatus("ok");
+    };
 
     const sv = new google.maps.StreetViewService();
     sv.getPanorama(
       {
         location: { lat, lng },
-        radius: 1000,
+        // The location was already validated and snapped to a real OUTDOOR
+        // panorama by findGameLocations, so a tight radius keeps the panorama
+        // we display aligned with the coordinate the round is scored against.
+        radius: 50,
         preference: google.maps.StreetViewPreference.NEAREST,
         source: google.maps.StreetViewSource.OUTDOOR,
       },
       (data, svStatus) => {
+        if (cancelled) return;
+
         if (
           svStatus === google.maps.StreetViewStatus.OK &&
           data?.location?.latLng
@@ -39,7 +52,7 @@ export default function StreetView({ lat, lng }: StreetViewProps) {
             containerRef.current!,
             {
               position: data.location.latLng,
-              pov: { heading: 0, pitch: 0 },
+              pov: { heading, pitch: 0 },
               zoom: 1,
               addressControl: false,
               showRoadLabels: false,
@@ -71,43 +84,52 @@ export default function StreetView({ lat, lng }: StreetViewProps) {
             }
           });
 
-          setTimeout(() => {
-            google.maps.event.trigger(panoramaRef.current!, "resize");
-          }, 100);
+          timers.push(
+            setTimeout(() => {
+              if (!cancelled && panoramaRef.current) {
+                google.maps.event.trigger(panoramaRef.current, "resize");
+              }
+            }, 100)
+          );
 
-          // Wait for tiles to actually load before hiding spinner
+          // Keep the spinner up until the tiles have actually rendered, so the
+          // player never sees a half-loaded black panorama.
           google.maps.event.addListenerOnce(
             panoramaRef.current,
             "tilesloaded",
-            () => setStatus("ok")
+            reveal
           );
-          // Fallback: if tilesloaded doesn't fire within 5s, show anyway
-          setTimeout(() => setStatus("ok"), 5000);
+          // Last-resort safety net: if tilesloaded never fires (rare), reveal
+          // anyway after a generous wait rather than spin forever. The dark
+          // container background keeps any brief gap from flashing pure black.
+          timers.push(setTimeout(reveal, 10000));
         } else {
-          setStatus("error");
+          if (!cancelled) setStatus("error");
         }
       }
     );
 
     return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
       if (panoramaRef.current) {
         panoramaRef.current.setVisible(false);
         panoramaRef.current = null;
       }
     };
-  }, [lat, lng]);
+  }, [lat, lng, heading]);
 
   const handleReturnToStart = useCallback(() => {
     if (panoramaRef.current && startPositionRef.current) {
       panoramaRef.current.setPosition(startPositionRef.current);
-      panoramaRef.current.setPov({ heading: 0, pitch: 0 });
+      panoramaRef.current.setPov({ heading, pitch: 0 });
       setMoved(false);
     }
-  }, []);
+  }, [heading]);
 
   return (
     <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full" />
+      <div ref={containerRef} className="w-full h-full bg-zinc-900" />
 
       {/* Return to start button */}
       {moved && status === "ok" && (
