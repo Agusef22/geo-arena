@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   STARTING_SCORE,
@@ -18,6 +18,28 @@ interface GameSummaryProps {
   rounds: RoundData[];
   onPlayAgain: () => void;
   gameOver?: boolean;
+}
+
+// Wordle-style emoji square per round, by how good the guess was.
+function roundSquare(round: RoundData): string {
+  if (round.bonus > 0 || round.penaltyRatio < 0.15) return "🟩";
+  if (round.penaltyRatio < 0.5) return "🟨";
+  return "🟥";
+}
+
+// A shareable, no-PII summary: score, per-round squares, and a link.
+function buildShareText(
+  finalScore: number,
+  rounds: RoundData[],
+  gameOver: boolean
+): string {
+  const squares = rounds.map(roundSquare).join("");
+  const url =
+    typeof window !== "undefined" ? window.location.origin : "https://geoarena";
+  const headline = gameOver
+    ? `GeoArena 🌍 — eliminated (${finalScore.toLocaleString()} pts)`
+    : `GeoArena 🌍 — ${finalScore.toLocaleString()}/${STARTING_SCORE.toLocaleString()} pts`;
+  return `${headline}\n${squares}\nCan you beat me? ${url}`;
 }
 
 function ResultIcon({ color, gameOver }: { color: string; gameOver?: boolean }) {
@@ -86,6 +108,26 @@ export default function GameSummary({
   const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
   const pct = Math.min(100, Math.round((finalScore / STARTING_SCORE) * 100));
   const roundsPlayed = rounds.length;
+  const [shared, setShared] = useState(false);
+
+  async function handleShare() {
+    const text = buildShareText(finalScore, rounds, gameOver);
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch {
+      // user cancelled the share sheet, or it failed — fall through to copy
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {
+      // clipboard blocked — nothing else we can do
+    }
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -160,8 +202,31 @@ export default function GameSummary({
           Menu
         </Link>
         <button
+          onClick={handleShare}
+          className="bg-zinc-700 hover:bg-zinc-600 active:scale-95 text-white font-bold py-3 sm:py-4 px-5 sm:px-6 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"
+          title="Share your result"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          <span className="hidden sm:inline">{shared ? "Copied!" : "Share"}</span>
+        </button>
+        <button
           onClick={onPlayAgain}
-          className="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-3 sm:py-4 px-8 sm:px-12 rounded-full shadow-lg transition-all text-base sm:text-xl cursor-pointer flex items-center gap-2"
+          className="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-3 sm:py-4 px-6 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-xl cursor-pointer flex items-center gap-2"
         >
           <span>{gameOver ? "Try Again" : "Play Again"}</span>
           <kbd className="hidden sm:inline text-xs bg-green-600 px-1.5 py-0.5 rounded">
