@@ -8,6 +8,7 @@ import RoundResult from "./RoundResult";
 import GameSummary from "./GameSummary";
 import { findGameLocations, type Location } from "@/lib/locations";
 import { getRandomPoolLocations } from "@/lib/supabase/pool";
+import { REGIONS, type Region } from "@/lib/regions";
 import type { RoundData } from "@/lib/types";
 import {
   haversineDistance,
@@ -24,7 +25,7 @@ import { startClassicGame, submitClassicGame } from "@/lib/supabase/game-results
 
 type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
 
-export default function Game() {
+export default function Game({ region = REGIONS[0] }: { region?: Region }) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [phase, setPhase] = useState<GamePhase>("loading");
@@ -59,7 +60,7 @@ export default function Game() {
 
     // Logged-in: open a server-authoritative session — the server stores the
     // locations and scores them on submit, so the result can't be forged.
-    const session = await startClassicGame(ROUNDS_PER_GAME);
+    const session = await startClassicGame(ROUNDS_PER_GAME, region.countries);
     if (session) {
       gameId = session.gameId;
       locs = session.locations;
@@ -69,7 +70,7 @@ export default function Game() {
     // pool; fall back to a live search if it isn't seeded yet.
     if (locs.length < ROUNDS_PER_GAME) {
       gameId = null;
-      locs = await getRandomPoolLocations(ROUNDS_PER_GAME);
+      locs = await getRandomPoolLocations(ROUNDS_PER_GAME, region.countries);
       if (locs.length < ROUNDS_PER_GAME) {
         locs = await findGameLocations(
           svServiceRef.current,
@@ -92,7 +93,7 @@ export default function Game() {
     setPhase("playing");
     setMapOpen(false);
     savedRef.current = false;
-  }, []);
+  }, [region]);
 
   useEffect(() => {
     // Intentional: kick off the async location search on mount. loadLocations
@@ -227,7 +228,9 @@ export default function Game() {
             Finding locations...
           </p>
           <p className="text-zinc-500 text-sm mb-4">
-            Searching for Street View coverage worldwide
+            {region.key === "world"
+              ? "Searching for Street View coverage worldwide"
+              : `Region: ${region.emoji} ${region.label}`}
           </p>
 
           <div className="w-56 h-2 bg-zinc-800 rounded-full mx-auto overflow-hidden">

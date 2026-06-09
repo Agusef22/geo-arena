@@ -2,6 +2,7 @@ import Link from "next/link";
 import UserMenu from "@/components/UserMenu";
 import Leaderboard from "@/components/Leaderboard";
 import PlayerStatsCard from "@/components/PlayerStats";
+import RegionPicker from "@/components/RegionPicker";
 
 function Globe() {
   return (
@@ -285,11 +286,7 @@ export default function Home() {
               </span>
             </div>
           </Link>
-          <ModeCard
-            name="Regions"
-            desc="Pick a specific area. Europe, Asia, Americas. Test where it counts."
-            meta="custom area"
-          />
+          <RegionPicker />
         </div>
       </section>
 

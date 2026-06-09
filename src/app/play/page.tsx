@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import Game from "@/components/Game";
+import { resolveRegion } from "@/lib/regions";
 
-export default function PlayPage() {
+function PlayInner() {
+  const params = useSearchParams();
+  const region = resolveRegion(params.get("region"));
+
   // Lazy init: if the Maps script is already on the page (e.g. client-side
   // navigation from another map route), skip the loading state entirely.
   const [mapsLoaded, setMapsLoaded] = useState(
@@ -29,5 +34,19 @@ export default function PlayPage() {
     );
   }
 
-  return <Game />;
+  return <Game region={region} />;
+}
+
+export default function PlayPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen bg-zinc-900">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+        </div>
+      }
+    >
+      <PlayInner />
+    </Suspense>
+  );
 }

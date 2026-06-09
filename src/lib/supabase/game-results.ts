@@ -9,7 +9,8 @@ import type { Location } from "@/lib/locations";
  * unsaved game via getRandomPoolLocations.
  */
 export async function startClassicGame(
-  count: number
+  count: number,
+  countries?: string[] | null
 ): Promise<{ gameId: string; locations: Location[] } | null> {
   const supabase = createClient();
 
@@ -20,6 +21,7 @@ export async function startClassicGame(
 
   const { data, error } = await supabase.rpc("start_classic_game", {
     n: count,
+    countries: countries ?? null,
   });
   if (error || !data || data.length === 0) return null;
 
