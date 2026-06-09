@@ -69,6 +69,13 @@ export default function UserMenu() {
           {/* Actions */}
           <div className="py-1">
             <Link
+              href="/profile"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"
+            >
+              Profile &amp; history
+            </Link>
+            <Link
               href="/profile/edit"
               onClick={() => setOpen(false)}
               className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"

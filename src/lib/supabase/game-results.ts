@@ -93,6 +93,43 @@ export async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
   }));
 }
 
+export interface RecentGame {
+  id: string;
+  mode: string;
+  score: number;
+  gameOver: boolean;
+  roundsPlayed: number;
+  createdAt: string;
+}
+
+/**
+ * A player's most recent games (newest first), for the profile history.
+ */
+export async function getRecentGames(
+  playerId: string,
+  limit = 15
+): Promise<RecentGame[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("game_results")
+    .select("id, mode, score, game_over, rounds_played, created_at")
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return data.map((r) => ({
+    id: r.id as string,
+    mode: r.mode as string,
+    score: r.score as number,
+    gameOver: r.game_over as boolean,
+    roundsPlayed: r.rounds_played as number,
+    createdAt: r.created_at as string,
+  }));
+}
+
 export interface PlayerStats {
   gamesPlayed: number;
   bestScore: number;
