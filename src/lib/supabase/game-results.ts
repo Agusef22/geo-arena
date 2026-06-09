@@ -77,26 +77,18 @@ export interface LeaderboardEntry {
 export async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("game_results")
-    .select("score, created_at, profiles(nickname, emoji)")
-    .eq("mode", "classic")
-    .eq("game_over", false)
-    .order("score", { ascending: false })
-    .limit(limit);
+  // One row per player (their best classic game) — see get_leaderboard RPC.
+  const { data, error } = await supabase.rpc("get_leaderboard", { lim: limit });
 
   if (error || !data) return [];
 
-  return data.map((row: Record<string, unknown>, i: number) => {
-    const profile = row.profiles as { nickname: string; emoji: string } | null;
-    return {
-      rank: i + 1,
-      nickname: profile?.nickname ?? "Unknown",
-      emoji: profile?.emoji ?? "🌍",
-      score: row.score as number,
-      created_at: row.created_at as string,
-    };
-  });
+  return (data as Array<Record<string, unknown>>).map((row, i) => ({
+    rank: i + 1,
+    nickname: (row.nickname as string) ?? "Unknown",
+    emoji: (row.emoji as string) ?? "🌍",
+    score: row.score as number,
+    created_at: row.created_at as string,
+  }));
 }
 
 export interface PlayerStats {
