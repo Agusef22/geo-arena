@@ -158,6 +158,10 @@ export default function DuelGame({ code }: { code: string }) {
   const GUESS_TIME_LIMIT = 30;
   const [guessTimer, setGuessTimer] = useState<number | null>(null);
   const timerAutoSubmittedRef = useRef(-1);
+  // When THIS client first saw the opponent's guess for a round (local clock).
+  // We time the 30s from here instead of from the server's created_at, so a
+  // skewed device clock can't make the timer expire instantly (auto-ocean).
+  const opponentSeenRef = useRef<{ round: number; at: number } | null>(null);
   // Auto-advance timer for result screen
   const NEXT_ROUND_TIME_LIMIT = 60;
   const [nextTimer, setNextTimer] = useState<number | null>(null);
@@ -578,7 +582,7 @@ export default function DuelGame({ code }: { code: string }) {
     async function checkGuessState() {
       const { data: guesses } = await supabase
         .from("duel_guesses")
-        .select("player_id, created_at")
+        .select("player_id")
         .eq("duel_id", duelId!)
         .eq("round", currentRound);
 
@@ -591,9 +595,17 @@ export default function DuelGame({ code }: { code: string }) {
         if (phase === "playing") setPhase("waiting-opponent");
         setGuessTimer(null);
       } else if (opponentGuess && !hasSubmittedRef.current) {
-        // Opponent guessed but I haven't — start timer if not already running
+        // Opponent guessed but I haven't — count 30s from when WE first saw it
+        // (local clock only). Anchoring to the server's created_at vs our
+        // Date.now() let a fast device clock expire the timer instantly.
+        if (
+          !opponentSeenRef.current ||
+          opponentSeenRef.current.round !== currentRound
+        ) {
+          opponentSeenRef.current = { round: currentRound, at: Date.now() };
+        }
         const elapsed = Math.floor(
-          (Date.now() - new Date(opponentGuess.created_at).getTime()) / 1000
+          (Date.now() - opponentSeenRef.current.at) / 1000
         );
         const remaining = Math.max(0, GUESS_TIME_LIMIT - elapsed);
         setGuessTimer(remaining);
