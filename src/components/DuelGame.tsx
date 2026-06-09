@@ -166,9 +166,10 @@ export default function DuelGame({ code }: { code: string }) {
   const NEXT_ROUND_TIME_LIMIT = 60;
   const [nextTimer, setNextTimer] = useState<number | null>(null);
   // After this long waiting for an opponent who never guesses, offer to claim
-  // the win (the server validates the opponent really is absent). Must be >
-  // the opponent's own 30s auto-submit window so a present player isn't robbed.
-  const FORFEIT_AFTER_SECONDS = 45;
+  // the win (the server validates the opponent really is absent, requiring 60s
+  // since our guess). Kept above the server's window — and well above the 30s
+  // auto-submit — so the opponent has ~a minute to reconnect and isn't robbed.
+  const FORFEIT_AFTER_SECONDS = 65;
   const [canForfeit, setCanForfeit] = useState(false);
   const [forfeiting, setForfeiting] = useState(false);
 

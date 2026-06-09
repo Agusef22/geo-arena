@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,17 @@ export default function DuelLobby() {
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Code of a duel the player is already in (waiting/playing), so they can
+  // jump back in with one click after closing the tab.
+  const [activeCode, setActiveCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase.rpc("get_active_duel").then(({ data }) => {
+      if (typeof data === "string" && data) setActiveCode(data);
+    });
+  }, [user]);
 
   async function handleCreate() {
     if (!user || !profile) return;
@@ -210,6 +221,22 @@ export default function DuelLobby() {
         <p className="text-neutral-500 text-sm mb-8">
           Challenge a friend. Same locations, closest guess wins.
         </p>
+
+        {/* Resume a game already in progress */}
+        {activeCode && (
+          <Link
+            href={`/duel/${activeCode}`}
+            className="flex items-center justify-between gap-2 w-full bg-cyan-950/40 border border-cyan-900/50 hover:bg-cyan-950/60 rounded-xl px-4 py-3 mb-4 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-cyan-300 text-sm font-medium">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              Resume game in progress
+            </span>
+            <span className="font-mono text-cyan-400 tracking-[0.2em] font-bold">
+              {activeCode} →
+            </span>
+          </Link>
+        )}
 
         {/* Create game */}
         <button
