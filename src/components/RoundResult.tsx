@@ -5,6 +5,7 @@ import { formatDistance, getPenaltyTier, STARTING_SCORE } from "@/lib/game";
 import { useReverseGeocode } from "@/hooks/useReverseGeocode";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { createPinIcon } from "@/lib/map-utils";
+import { useAuth } from "@/context/AuthContext";
 
 interface RoundResultProps {
   actualLat: number;
@@ -47,6 +48,10 @@ export default function RoundResult({
   const tier = getPenaltyTier(penaltyRatio);
   const locationName = useReverseGeocode(actualLat, actualLng);
   const isDead = currentScore <= 0;
+  const { profile } = useAuth();
+  // The player's avatar for their guess pin; falls back to a target when
+  // playing without an account.
+  const myEmoji = profile?.emoji ?? "🎯";
 
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
@@ -71,12 +76,18 @@ export default function RoundResult({
       position: actual,
       map,
       icon: createPinIcon("#22c55e", "#15803d"),
+      title: "Actual location",
+      label: { text: "📍", fontSize: "13px" },
+      zIndex: 1,
     });
 
     new google.maps.Marker({
       position: guess,
       map,
       icon: createPinIcon("#3b82f6", "#1d4ed8"),
+      title: "Your guess",
+      label: { text: myEmoji, fontSize: "14px" },
+      zIndex: 2,
     });
 
     new google.maps.Polyline({
@@ -97,7 +108,7 @@ export default function RoundResult({
       ],
       geodesic: true,
     });
-  }, [actualLat, actualLng, guessLat, guessLng]);
+  }, [actualLat, actualLng, guessLat, guessLng, myEmoji]);
 
   const scoreBarWidth = `${Math.min(100, (currentScore / STARTING_SCORE) * 100)}%`;
 
@@ -183,6 +194,20 @@ export default function RoundResult({
       {/* Map */}
       <div className="flex-1 relative min-h-0">
         <div ref={mapRef} className="w-full h-full" />
+
+        {/* Legend */}
+        <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-sm rounded-lg px-3 py-2 text-xs space-y-1.5 z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            <span className="text-zinc-300">📍 Actual location</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span className="text-blue-300 font-medium">
+              {myEmoji} Your guess
+            </span>
+          </div>
+        </div>
 
         {isDead && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse z-10">
