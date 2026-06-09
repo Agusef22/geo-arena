@@ -13,6 +13,9 @@ interface StreetViewProps {
   // Initial camera heading (degrees) facing down the road. Comes from the
   // curated pool; defaults to 0 for live-searched locations.
   heading?: number;
+  // When false (No-Move difficulty), the player can look around but can't walk
+  // (no navigation links, no click-to-go). Defaults to true.
+  move?: boolean;
 }
 
 export default function StreetView({
@@ -20,6 +23,7 @@ export default function StreetView({
   lng,
   panoId,
   heading = 0,
+  move = true,
 }: StreetViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
@@ -68,7 +72,10 @@ export default function StreetView({
           zoom: 1,
           addressControl: false,
           showRoadLabels: false,
-          linksControl: true,
+          // No-Move difficulty: hide the navigation arrows and disable
+          // click-to-go so the player can't walk away from the drop point.
+          linksControl: move,
+          clickToGo: move,
           panControl: false,
           zoomControl: false,
           enableCloseButton: false,
@@ -165,7 +172,7 @@ export default function StreetView({
         panoramaRef.current = null;
       }
     };
-  }, [lat, lng, panoId, heading]);
+  }, [lat, lng, panoId, heading, move]);
 
   const handleReturnToStart = useCallback(() => {
     if (panoramaRef.current && startPositionRef.current) {

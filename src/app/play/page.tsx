@@ -9,6 +9,8 @@ import { resolveRegion } from "@/lib/regions";
 function PlayInner() {
   const params = useSearchParams();
   const region = resolveRegion(params.get("region"));
+  const timed = params.get("timed") === "1";
+  const noMove = params.get("nomove") === "1";
 
   // Lazy init: if the Maps script is already on the page (e.g. client-side
   // navigation from another map route), skip the loading state entirely.
@@ -34,7 +36,7 @@ function PlayInner() {
     );
   }
 
-  return <Game region={region} />;
+  return <Game region={region} timed={timed} noMove={noMove} />;
 }
 
 export default function PlayPage() {

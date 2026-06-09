@@ -25,7 +25,18 @@ import { startClassicGame, submitClassicGame } from "@/lib/supabase/game-results
 
 type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
 
-export default function Game({ region = REGIONS[0] }: { region?: Region }) {
+// Seconds per round in Timed difficulty.
+const TIMED_ROUND_SECONDS = 30;
+
+export default function Game({
+  region = REGIONS[0],
+  timed = false,
+  noMove = false,
+}: {
+  region?: Region;
+  timed?: boolean;
+  noMove?: boolean;
+}) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [phase, setPhase] = useState<GamePhase>("loading");
@@ -38,6 +49,9 @@ export default function Game({ region = REGIONS[0] }: { region?: Region }) {
   // Id of the server-side game session (logged-in players only). Null for
   // anonymous/fallback games, which aren't saved.
   const gameIdRef = useRef<string | null>(null);
+  // Timed difficulty: seconds left in the current round (null = no timer).
+  const [roundTimer, setRoundTimer] = useState<number | null>(null);
+  const timedOutRef = useRef(-1);
   const { playGood, playBad, playNext } = useSoundEffects();
   const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
 
@@ -204,6 +218,38 @@ export default function Game({ region = REGIONS[0] }: { region?: Region }) {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, handleNext]);
 
+  // Timed difficulty: arm a 30s countdown at the start of each playing round.
+  useEffect(() => {
+    // Intentional: derive the round timer from the phase/round transition.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (!timed || phase !== "playing") {
+      setRoundTimer(null);
+      return;
+    }
+    setRoundTimer(TIMED_ROUND_SECONDS);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [timed, phase, currentRound]);
+
+  // Tick the timer; when it hits 0 auto-submit a far guess (max penalty) so the
+  // round still resolves, mirroring how the duel handles a timeout.
+  useEffect(() => {
+    if (roundTimer === null || phase !== "playing") return;
+    if (roundTimer <= 0) {
+      if (timedOutRef.current !== currentRound && currentLocation) {
+        timedOutRef.current = currentRound;
+        // Intentional: a timeout resolves the round by submitting a far guess.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        handleGuess(0, 0);
+      }
+      return;
+    }
+    const tick = setTimeout(
+      () => setRoundTimer((s) => (s !== null ? s - 1 : null)),
+      1000
+    );
+    return () => clearTimeout(tick);
+  }, [roundTimer, phase, currentRound, currentLocation, handleGuess]);
+
   // Loading screen
   if (phase === "loading") {
     return (
@@ -351,6 +397,7 @@ export default function Game({ region = REGIONS[0] }: { region?: Region }) {
           lng={currentLocation.lng}
           panoId={currentLocation.panoId}
           heading={currentLocation.heading}
+          move={!noMove}
         />
       </div>
 
@@ -409,6 +456,40 @@ export default function Game({ region = REGIONS[0] }: { region?: Region }) {
           </span>
         </div>
       </div>
+
+      {/* Timed difficulty: round countdown */}
+      {timed && roundTimer !== null && (
+        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+          <div
+            className={`backdrop-blur-sm rounded-full px-5 py-2.5 flex items-center gap-2.5 shadow-lg border ${
+              roundTimer <= 10
+                ? "bg-red-950/80 border-red-800/50"
+                : "bg-black/70 border-zinc-700/50"
+            }`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={roundTimer <= 10 ? "#ef4444" : "#fbbf24"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span
+              className={`font-mono font-bold text-lg tabular-nums ${
+                roundTimer <= 10 ? "text-red-400 animate-pulse" : "text-yellow-400"
+              }`}
+            >
+              {roundTimer}s
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Mobile: toggle map button */}
       <button

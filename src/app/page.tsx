@@ -3,6 +3,7 @@ import UserMenu from "@/components/UserMenu";
 import Leaderboard from "@/components/Leaderboard";
 import PlayerStatsCard from "@/components/PlayerStats";
 import RegionPicker from "@/components/RegionPicker";
+import ChallengePicker from "@/components/ChallengePicker";
 
 function Globe() {
   return (
@@ -121,57 +122,6 @@ function Globe() {
   );
 }
 
-function LockIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-neutral-600"
-    >
-      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function ModeCard({
-  name,
-  desc,
-  meta,
-}: {
-  name: string;
-  desc: string;
-  meta: string;
-}) {
-  return (
-    <div className="group relative border border-neutral-900 rounded-2xl p-6 bg-[#0c0c0c] hover:border-neutral-800 hover:bg-[#101010] transition-colors">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-display text-2xl font-extrabold text-neutral-300 tracking-tight">
-          {name}
-        </h3>
-        <LockIcon />
-      </div>
-      <p className="text-sm text-neutral-500 leading-relaxed mb-6 min-h-[3em]">
-        {desc}
-      </p>
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700">
-          {meta}
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 px-2.5 py-1 border border-neutral-800 rounded-full">
-          Soon
-        </span>
-      </div>
-    </div>
-  );
-}
-
 export default function Home() {
   return (
     <main className="bg-[#0a0a0a] text-[#fafaf9] relative overflow-x-hidden">
@@ -252,19 +202,15 @@ export default function Home() {
         <div className="flex items-center justify-between mb-8">
           <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500 flex items-center gap-2">
             <span className="text-emerald-400">↳</span>
-            More modes incoming
+            Game modes
           </p>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-700 hidden sm:block">
-            03 / in development
+            03 / playable
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <ModeCard
-            name="Timed"
-            desc="30 seconds per round. Quick decisions, higher pressure."
-            meta="30s / round"
-          />
+          <ChallengePicker />
           <Link href="/duel" className="group relative border border-neutral-900 rounded-2xl p-6 bg-[#0c0c0c] hover:border-emerald-900/50 hover:bg-emerald-950/10 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-2xl font-extrabold text-neutral-200 tracking-tight">
