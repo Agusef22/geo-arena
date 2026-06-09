@@ -165,6 +165,12 @@ export default function DuelGame({ code }: { code: string }) {
   // Auto-advance timer for result screen
   const NEXT_ROUND_TIME_LIMIT = 60;
   const [nextTimer, setNextTimer] = useState<number | null>(null);
+  // After this long waiting for an opponent who never guesses, offer to claim
+  // the win (the server validates the opponent really is absent). Must be >
+  // the opponent's own 30s auto-submit window so a present player isn't robbed.
+  const FORFEIT_AFTER_SECONDS = 45;
+  const [canForfeit, setCanForfeit] = useState(false);
+  const [forfeiting, setForfeiting] = useState(false);
 
   const me = players.find((p) => p.player_id === user?.id);
   const opponent = players.find((p) => p.player_id !== user?.id);
@@ -832,6 +838,34 @@ export default function DuelGame({ code }: { code: string }) {
     return () => clearTimeout(tick);
   }, [nextTimer, phase, iReady, handleNext]);
 
+  // ====== Offer to claim the win if stuck waiting for an absent opponent ======
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanForfeit(false);
+    if (phase !== "waiting-opponent") return;
+    const t = setTimeout(
+      () => setCanForfeit(true),
+      FORFEIT_AFTER_SECONDS * 1000
+    );
+    return () => clearTimeout(t);
+  }, [phase, currentRound]);
+
+  const handleForfeit = useCallback(async () => {
+    if (!duelId || forfeiting) return;
+    setForfeiting(true);
+    const { error: forfeitError } = await supabase.rpc("forfeit_duel", {
+      p_duel_id: duelId,
+    });
+    if (forfeitError) {
+      // The opponent likely guessed just in time — let the normal flow resolve
+      // the round instead of forcing a forfeit.
+      setForfeiting(false);
+      return;
+    }
+    setOpponentScore(0);
+    setPhase("summary");
+  }, [duelId, forfeiting, supabase]);
+
   const currentLocation = locations[currentRound];
 
   // ===== RENDERS =====
@@ -968,6 +1002,21 @@ export default function DuelGame({ code }: { code: string }) {
         <p className="text-neutral-600 text-sm mt-2">
           You already placed your guess
         </p>
+
+        {canForfeit && (
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <p className="text-neutral-500 text-sm max-w-xs">
+              {opponent?.nickname ?? "Your opponent"} seems to have left.
+            </p>
+            <button
+              onClick={handleForfeit}
+              disabled={forfeiting}
+              className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-[#0a0a0a] font-bold py-3 px-7 rounded-full transition-all cursor-pointer"
+            >
+              {forfeiting ? "Claiming..." : "Claim win"}
+            </button>
+          </div>
+        )}
       </div>
     );
   }
