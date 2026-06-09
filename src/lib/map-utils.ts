@@ -10,5 +10,8 @@ export function createPinIcon(
     strokeWeight: 2,
     scale: 0.9,
     anchor: new google.maps.Point(16, 42),
+    // Center any marker label inside the pin's round head (not at the tip),
+    // so we can drop a player's emoji on their guess pin.
+    labelOrigin: new google.maps.Point(16, 16),
   };
 }

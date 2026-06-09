@@ -165,13 +165,18 @@ export default function DuelGame({ code }: { code: string }) {
   // Auto-advance timer for result screen
   const NEXT_ROUND_TIME_LIMIT = 60;
   const [nextTimer, setNextTimer] = useState<number | null>(null);
-  // After this long waiting for an opponent who never guesses, offer to claim
-  // the win (the server validates the opponent really is absent, requiring 60s
-  // since our guess). Kept above the server's window — and well above the 30s
-  // auto-submit — so the opponent has ~a minute to reconnect and isn't robbed.
-  const FORFEIT_AFTER_SECONDS = 65;
-  const [canForfeit, setCanForfeit] = useState(false);
+  // How long we've been waiting for the opponent to guess this round (seconds).
+  // Drives progressive "they may have left" feedback + the claim-win countdown.
+  const [waitSeconds, setWaitSeconds] = useState(0);
   const [forfeiting, setForfeiting] = useState(false);
+  // After SUSPECT we warn the opponent may have left; at FORFEIT we let the
+  // player claim the win. SUSPECT sits just past the 30s auto-submit window: a
+  // present opponent would have been auto-submitted by then, so still waiting
+  // strongly implies they left. FORFEIT stays above the server's 60s window so
+  // a reconnecting opponent isn't robbed.
+  const SUSPECT_AFTER_SECONDS = 35;
+  const FORFEIT_AFTER_SECONDS = 65;
+  const canForfeit = waitSeconds >= FORFEIT_AFTER_SECONDS;
 
   const me = players.find((p) => p.player_id === user?.id);
   const opponent = players.find((p) => p.player_id !== user?.id);
@@ -839,16 +844,13 @@ export default function DuelGame({ code }: { code: string }) {
     return () => clearTimeout(tick);
   }, [nextTimer, phase, iReady, handleNext]);
 
-  // ====== Offer to claim the win if stuck waiting for an absent opponent ======
+  // ====== Track how long we've been waiting for the opponent this round ======
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCanForfeit(false);
+    setWaitSeconds(0);
     if (phase !== "waiting-opponent") return;
-    const t = setTimeout(
-      () => setCanForfeit(true),
-      FORFEIT_AFTER_SECONDS * 1000
-    );
-    return () => clearTimeout(t);
+    const id = setInterval(() => setWaitSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
   }, [phase, currentRound]);
 
   const handleForfeit = useCallback(async () => {
@@ -996,18 +998,32 @@ export default function DuelGame({ code }: { code: string }) {
   }
 
   if (phase === "waiting-opponent") {
+    const oppName = opponent?.nickname ?? "your opponent";
+    const suspect = waitSeconds >= SUSPECT_AFTER_SECONDS;
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
         <div className="w-8 h-8 border-2 border-zinc-700 border-t-cyan-500 rounded-full animate-spin mb-4" />
-        <p className="text-neutral-400 text-lg">Waiting for {opponent?.nickname ?? "opponent"}...</p>
+        <p className="text-neutral-400 text-lg">Waiting for {oppName}...</p>
         <p className="text-neutral-600 text-sm mt-2">
           You already placed your guess
         </p>
 
+        {/* Progressive feedback so the wait is never silent. */}
+        {suspect && !canForfeit && (
+          <div className="mt-8 flex flex-col items-center gap-2 max-w-xs">
+            <p className="text-amber-400/90 text-sm">
+              {oppName} is taking a while — they may have disconnected.
+            </p>
+            <p className="text-neutral-500 text-xs tabular-nums">
+              You can claim the win in {FORFEIT_AFTER_SECONDS - waitSeconds}s
+            </p>
+          </div>
+        )}
+
         {canForfeit && (
           <div className="mt-8 flex flex-col items-center gap-3">
-            <p className="text-neutral-500 text-sm max-w-xs">
-              {opponent?.nickname ?? "Your opponent"} seems to have left.
+            <p className="text-neutral-400 text-sm max-w-xs">
+              {oppName} seems to have left the game.
             </p>
             <button
               onClick={handleForfeit}

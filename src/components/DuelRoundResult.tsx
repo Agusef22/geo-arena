@@ -77,22 +77,28 @@ export default function DuelRoundResult({
       map,
       icon: createPinIcon("#22c55e", "#15803d"),
       title: "Actual location",
+      label: { text: "📍", fontSize: "13px" },
+      zIndex: 1,
     });
 
-    // My guess (cyan)
+    // My guess (cyan) — labelled with my emoji so it's obvious it's mine
     new google.maps.Marker({
       position: myGuess,
       map,
       icon: createPinIcon("#06b6d4", "#0891b2"),
-      title: myName,
+      title: `${myName} (you)`,
+      label: { text: myEmoji, fontSize: "14px" },
+      zIndex: 3,
     });
 
-    // Opponent guess (red)
+    // Opponent guess (red) — labelled with their emoji
     new google.maps.Marker({
       position: opponentGuess,
       map,
       icon: createPinIcon("#ef4444", "#dc2626"),
       title: opponentName,
+      label: { text: opponentEmoji, fontSize: "14px" },
+      zIndex: 2,
     });
 
     // Lines
@@ -118,7 +124,7 @@ export default function DuelRoundResult({
       icons: [{ icon: dashIcon("#ef4444"), offset: "0", repeat: "16px" }],
       geodesic: true,
     });
-  }, [location, myGuess, opponentGuess, myName, opponentName]);
+  }, [location, myGuess, opponentGuess, myName, opponentName, myEmoji, opponentEmoji]);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -212,18 +218,22 @@ export default function DuelRoundResult({
         <div ref={mapRef} className="w-full h-full" />
 
         {/* Legend */}
-        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 text-xs space-y-1 z-10">
+        <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-sm rounded-lg px-3 py-2 text-xs space-y-1.5 z-10">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="text-zinc-300">Actual</span>
+            <span className="text-zinc-300">📍 Actual location</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-cyan-500" />
-            <span className="text-zinc-300">{myName}</span>
+            <span className="text-cyan-300 font-medium">
+              {myEmoji} {myName} (you)
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="text-zinc-300">{opponentName}</span>
+            <span className="text-zinc-300">
+              {opponentEmoji} {opponentName}
+            </span>
           </div>
         </div>
       </div>
