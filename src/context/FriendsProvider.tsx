@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./AuthContext";
 import { usePresence } from "./PresenceProvider";
 import {
@@ -51,6 +52,7 @@ const EMPTY: FriendData = { friends: [], incoming: [], outgoing: [] };
 export function FriendsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { onlineUserIds } = usePresence();
+  const [supabase] = useState(() => createClient());
   const [data, setData] = useState<FriendData>(EMPTY);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +71,24 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
+
+  // Live updates: refresh whenever one of my friendships changes (a new request
+  // arrives, gets accepted, or is removed). Realtime RLS only delivers rows I'm
+  // a member of, so no filter is needed.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`friendships-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "friendships" },
+        () => refresh()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase, refresh]);
 
   const sendRequest = useCallback(
     async (nickname: string) => {

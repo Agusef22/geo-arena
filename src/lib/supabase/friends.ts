@@ -72,6 +72,36 @@ export async function loadFriendData(myId: string): Promise<FriendData> {
   return { friends, incoming, outgoing };
 }
 
+export interface UserResult {
+  id: string;
+  nickname: string;
+  emoji: string;
+}
+
+/**
+ * Search players by partial nickname (case-insensitive), excluding yourself.
+ * profiles is public-read, so this is a plain query. Wildcard chars are
+ * stripped so user input can't alter the LIKE pattern.
+ */
+export async function searchUsers(
+  query: string,
+  excludeId: string
+): Promise<UserResult[]> {
+  const q = query.trim().replace(/[%_,]/g, "");
+  if (q.length < 1) return [];
+
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, nickname, emoji")
+    .ilike("nickname", `%${q}%`)
+    .neq("id", excludeId)
+    .order("nickname")
+    .limit(10);
+
+  return data ?? [];
+}
+
 /** Send (or auto-accept) a friend request by the target's unique nickname. */
 export async function sendFriendRequest(
   nickname: string
