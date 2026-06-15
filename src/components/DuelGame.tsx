@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { useFriends } from "@/context/FriendsProvider";
 import {
   DUEL_STARTING_SCORE,
   DUEL_ROUNDS,
 } from "@/lib/duel";
 import { findGameLocations, type Location } from "@/lib/locations";
 import { getRandomPoolLocations } from "@/lib/supabase/pool";
+import { inviteToExistingDuel } from "@/lib/supabase/friends";
 import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
 import DuelRoundResult from "./DuelRoundResult";
@@ -129,9 +131,12 @@ function buildRoundsHistory(
 
 export default function DuelGame({ code }: { code: string }) {
   const { user } = useAuth();
+  const { friends } = useFriends();
   // useState's lazy initializer creates one stable client for the component's
   // lifetime (reading a ref during render is disallowed by react-hooks).
   const [supabase] = useState(() => createClient());
+  // Friends invited from the waiting room (to show an "invited" state).
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [duelId, setDuelId] = useState<string | null>(null);
@@ -869,6 +874,15 @@ export default function DuelGame({ code }: { code: string }) {
     setPhase("summary");
   }, [duelId, forfeiting, supabase]);
 
+  const handleInvite = useCallback(
+    async (friendId: string) => {
+      if (!duelId) return;
+      const ok = await inviteToExistingDuel(friendId, duelId);
+      if (ok) setInvitedIds((s) => new Set(s).add(friendId));
+    },
+    [duelId]
+  );
+
   const currentLocation = locations[currentRound];
 
   // ===== RENDERS =====
@@ -910,6 +924,34 @@ export default function DuelGame({ code }: { code: string }) {
             {code}
           </p>
         </div>
+
+        {/* Invite online friends directly */}
+        {friends.some((f) => f.online) && (
+          <div className="w-full max-w-xs bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 mb-6">
+            <p className="text-neutral-500 text-[11px] uppercase tracking-wider mb-3">
+              Invite a friend
+            </p>
+            <div className="space-y-1.5">
+              {friends
+                .filter((f) => f.online)
+                .map((f) => (
+                  <div key={f.friendshipId} className="flex items-center gap-2">
+                    <span className="text-lg">{f.emoji}</span>
+                    <span className="flex-1 min-w-0 text-sm text-neutral-200 truncate text-left">
+                      {f.nickname}
+                    </span>
+                    <button
+                      onClick={() => handleInvite(f.id)}
+                      disabled={invitedIds.has(f.id)}
+                      className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 disabled:text-zinc-400 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer disabled:cursor-default"
+                    >
+                      {invitedIds.has(f.id) ? "Invited ✓" : "Invite"}
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {me && (
           <div className="flex items-center gap-2 text-neutral-400 text-sm mb-2">

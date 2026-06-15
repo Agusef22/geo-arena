@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useFriends, type OnlineFriend } from "@/context/FriendsProvider";
-import { searchUsers, type FriendEntry, type UserResult } from "@/lib/supabase/friends";
+import {
+  searchUsers,
+  challengeFriend,
+  type FriendEntry,
+  type UserResult,
+} from "@/lib/supabase/friends";
 
 type Relation =
   | { kind: "friend" | "outgoing" | "none" }
@@ -20,6 +25,14 @@ export default function FriendsPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [challengingId, setChallengingId] = useState<string | null>(null);
+
+  async function handleChallenge(friendId: string) {
+    setChallengingId(friendId);
+    const code = await challengeFriend(friendId);
+    if (code) router.push(`/duel/${code}`);
+    else setChallengingId(null);
+  }
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -170,6 +183,15 @@ export default function FriendsPage() {
               ) : (
                 friends.map((f: OnlineFriend) => (
                   <Row key={f.friendshipId} emoji={f.emoji} nickname={f.nickname} online={f.online}>
+                    {f.online && (
+                      <button
+                        onClick={() => handleChallenge(f.id)}
+                        disabled={challengingId === f.id}
+                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                      >
+                        {challengingId === f.id ? "..." : "⚔️ Challenge"}
+                      </button>
+                    )}
                     <button
                       onClick={() => unfriend(f.friendshipId)}
                       className="text-xs font-medium text-neutral-500 hover:text-red-400 px-2 py-1.5 transition-colors cursor-pointer"

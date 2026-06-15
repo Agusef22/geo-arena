@@ -127,6 +127,32 @@ export async function respondFriendRequest(
   return !error;
 }
 
+/**
+ * Challenge a friend to a fresh duel: creates the duel + invite in one step.
+ * Returns the new duel code to navigate to, or null on failure.
+ */
+export async function challengeFriend(friendId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("challenge_friend", {
+    p_friend_id: friendId,
+  });
+  if (error || !data || data.length === 0) return null;
+  return (data[0] as { duel_code: string }).duel_code;
+}
+
+/** Invite a friend into a duel the caller already hosts (waiting room). */
+export async function inviteToExistingDuel(
+  friendId: string,
+  duelId: string
+): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("invite_to_existing_duel", {
+    p_friend_id: friendId,
+    p_duel_id: duelId,
+  });
+  return !error;
+}
+
 /** Remove a friendship (or cancel an outgoing request) — plain RLS-gated delete. */
 export async function unfriend(friendshipId: string): Promise<boolean> {
   const supabase = createClient();

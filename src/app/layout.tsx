@@ -3,6 +3,8 @@ import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { PresenceProvider } from "@/context/PresenceProvider";
 import { FriendsProvider } from "@/context/FriendsProvider";
+import { ToastProvider } from "@/context/ToastContext";
+import { InvitationsProvider } from "@/context/InvitationsProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +41,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <PresenceProvider>
-            <FriendsProvider>{children}</FriendsProvider>
+            <FriendsProvider>
+              <ToastProvider>
+                <InvitationsProvider>{children}</InvitationsProvider>
+              </ToastProvider>
+            </FriendsProvider>
           </PresenceProvider>
         </AuthProvider>
       </body>
