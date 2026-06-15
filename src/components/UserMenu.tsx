@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useFriends } from "@/context/FriendsProvider";
 
 export default function UserMenu() {
   const { user, profile, loading, signOut } = useAuth();
+  const { incoming } = useFriends();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -41,9 +43,12 @@ export default function UserMenu() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+        className="relative flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
       >
         <span className="text-xl">{profile.emoji}</span>
+        {incoming.length > 0 && (
+          <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0a0a0a]" />
+        )}
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-400 hidden sm:inline">
           {profile.nickname}
         </span>
@@ -68,6 +73,18 @@ export default function UserMenu() {
 
           {/* Actions */}
           <div className="py-1">
+            <Link
+              href="/friends"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"
+            >
+              <span>Friends</span>
+              {incoming.length > 0 && (
+                <span className="bg-emerald-500 text-[#0a0a0a] text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                  {incoming.length}
+                </span>
+              )}
+            </Link>
             <Link
               href="/profile"
               onClick={() => setOpen(false)}
