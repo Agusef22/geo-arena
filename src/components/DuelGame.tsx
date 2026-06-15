@@ -883,6 +883,41 @@ export default function DuelGame({ code }: { code: string }) {
     [duelId]
   );
 
+  // ====== Heartbeat + auto-end on abandonment ======
+  // While the game is live, mark myself present every few seconds and check if
+  // the opponent's heartbeat has gone stale (they left the duel). If so, the
+  // server ends the duel in my favor (~15s after they leave).
+  useEffect(() => {
+    const LIVE: Phase[] = [
+      "countdown",
+      "playing",
+      "waiting-opponent",
+      "waiting-next",
+      "result",
+    ];
+    if (!duelId || !user || !LIVE.includes(phase)) return;
+
+    let cancelled = false;
+    const beat = async () => {
+      await supabase.rpc("duel_heartbeat", { p_duel_id: duelId });
+      if (cancelled) return;
+      const { data: won } = await supabase.rpc("claim_abandoned_duel", {
+        p_duel_id: duelId,
+      });
+      if (!cancelled && won === true) {
+        setOpponentScore(0);
+        setPhase("summary");
+      }
+    };
+
+    beat();
+    const id = setInterval(beat, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [duelId, user, phase, supabase]);
+
   const currentLocation = locations[currentRound];
 
   // ===== RENDERS =====
