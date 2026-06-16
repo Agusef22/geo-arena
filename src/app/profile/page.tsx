@@ -6,6 +6,12 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import PlayerStatsCard from "@/components/PlayerStats";
 import { getRecentGames, type RecentGame } from "@/lib/supabase/game-results";
+import {
+  getDuelStats,
+  getDuelHistory,
+  type DuelStats,
+  type DuelHistoryEntry,
+} from "@/lib/supabase/duel-stats";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -24,6 +30,8 @@ export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth();
   const [games, setGames] = useState<RecentGame[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
+  const [duelStats, setDuelStats] = useState<DuelStats | null>(null);
+  const [duels, setDuels] = useState<DuelHistoryEntry[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -37,6 +45,8 @@ export default function ProfilePage() {
       setGames(g);
       setGamesLoading(false);
     });
+    getDuelStats(user.id).then(setDuelStats);
+    getDuelHistory(10).then(setDuels);
   }, [user]);
 
   if (authLoading || !user || !profile) {
@@ -75,12 +85,63 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* Stats */}
+        {/* Classic stats */}
         <div className="mb-10">
           <PlayerStatsCard />
         </div>
 
-        {/* History */}
+        {/* Duel record */}
+        {duelStats && (duelStats.wins + duelStats.losses + duelStats.draws > 0) && (
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-cyan-400">↳</span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
+                Duel record
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <DuelStatBox label="Rating" value={duelStats.rating} color="text-cyan-400" />
+              <DuelStatBox label="Wins" value={duelStats.wins} color="text-emerald-400" />
+              <DuelStatBox label="Losses" value={duelStats.losses} color="text-red-400" />
+              <DuelStatBox label="Draws" value={duelStats.draws} color="text-neutral-300" />
+            </div>
+
+            {duels.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                {duels.map((d, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-lg px-4 py-2.5 bg-neutral-900/50"
+                  >
+                    <span
+                      className={`text-[10px] font-bold uppercase w-10 ${
+                        d.result === "win"
+                          ? "text-emerald-400"
+                          : d.result === "loss"
+                          ? "text-red-400"
+                          : "text-neutral-400"
+                      }`}
+                    >
+                      {d.result === "win" ? "Win" : d.result === "loss" ? "Loss" : "Draw"}
+                    </span>
+                    <span className="text-lg">{d.opponentEmoji}</span>
+                    <span className="flex-1 min-w-0 text-sm text-neutral-300 truncate">
+                      {d.opponentNickname}
+                    </span>
+                    <span className="text-xs tabular-nums text-neutral-500">
+                      {d.myScore.toLocaleString()}–{d.opponentScore.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] text-neutral-600 w-12 text-right">
+                      {timeAgo(d.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Classic history */}
         <div className="flex items-center gap-2 mb-4">
           <span className="text-emerald-400">↳</span>
           <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
@@ -136,5 +197,26 @@ export default function ProfilePage() {
         )}
       </div>
     </main>
+  );
+}
+
+function DuelStatBox({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="bg-neutral-900/50 rounded-lg p-3 text-center">
+      <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      <p className={`text-lg font-bold tabular-nums ${color}`}>
+        {value.toLocaleString()}
+      </p>
+    </div>
   );
 }

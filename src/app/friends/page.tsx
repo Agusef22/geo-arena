@@ -11,6 +11,10 @@ import {
   type FriendEntry,
   type UserResult,
 } from "@/lib/supabase/friends";
+import {
+  getFriendsDuelRanking,
+  type RankingEntry,
+} from "@/lib/supabase/duel-stats";
 
 type Relation =
   | { kind: "friend" | "outgoing" | "none" }
@@ -26,6 +30,12 @@ export default function FriendsPage() {
   const [results, setResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [challengingId, setChallengingId] = useState<string | null>(null);
+  const [ranking, setRanking] = useState<RankingEntry[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    getFriendsDuelRanking().then(setRanking);
+  }, [user, friends.length]);
 
   async function handleChallenge(friendId: string) {
     setChallengingId(friendId);
@@ -216,6 +226,41 @@ export default function FriendsPage() {
                       Cancel
                     </button>
                   </Row>
+                ))}
+              </Section>
+            )}
+
+            {/* Friends ranking (by duel ELO) */}
+            {ranking.length > 1 && (
+              <Section title="Ranking">
+                {ranking.map((r, i) => (
+                  <div
+                    key={r.id}
+                    className={`flex items-center gap-3 rounded-lg px-4 py-2.5 ${
+                      r.isMe
+                        ? "bg-cyan-950/30 border border-cyan-900/30"
+                        : "bg-neutral-900/50"
+                    }`}
+                  >
+                    <span className="font-mono text-sm font-bold w-5 text-right text-neutral-500">
+                      {i + 1}
+                    </span>
+                    <span className="text-lg">{r.emoji}</span>
+                    <span
+                      className={`flex-1 min-w-0 text-sm font-medium truncate ${
+                        r.isMe ? "text-cyan-300" : "text-neutral-300"
+                      }`}
+                    >
+                      {r.nickname}
+                      {r.isMe && <span className="text-[10px] text-cyan-600 ml-1.5">you</span>}
+                    </span>
+                    <span className="text-[11px] text-neutral-600 tabular-nums">
+                      {r.wins}W·{r.losses}L
+                    </span>
+                    <span className="text-sm font-bold text-cyan-400 tabular-nums w-12 text-right">
+                      {r.rating}
+                    </span>
+                  </div>
                 ))}
               </Section>
             )}
