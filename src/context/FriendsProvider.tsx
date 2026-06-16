@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./AuthContext";
 import { usePresence } from "./PresenceProvider";
+import { useToast } from "./ToastContext";
 import {
   loadFriendData,
   sendFriendRequest,
@@ -52,6 +53,7 @@ const EMPTY: FriendData = { friends: [], incoming: [], outgoing: [] };
 export function FriendsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { onlineUserIds } = usePresence();
+  const { showToast } = useToast();
   const [supabase] = useState(() => createClient());
   const [data, setData] = useState<FriendData>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -72,9 +74,60 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  // Live updates: refresh whenever one of my friendships changes (a new request
-  // arrives, gets accepted, or is removed). Realtime RLS only delivers rows I'm
-  // a member of, so no filter is needed.
+  // Live updates: refresh whenever one of my friendships changes, and toast on
+  // a new incoming request. Realtime RLS only delivers rows I'm a member of.
+  const onFriendshipChange = useCallback(
+    async (payload: {
+      eventType: string;
+      new: Record<string, unknown>;
+    }) => {
+      refresh();
+      if (!user || payload.eventType !== "INSERT") return;
+
+      const row = payload.new as {
+        id: string;
+        user_low: string;
+        user_high: string;
+        requester: string;
+        status: string;
+      };
+      const incomingToMe =
+        row.status === "pending" &&
+        row.requester !== user.id &&
+        (row.user_low === user.id || row.user_high === user.id);
+      if (!incomingToMe) return;
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("nickname, emoji")
+        .eq("id", row.requester)
+        .single();
+
+      showToast({
+        emoji: prof?.emoji ?? "👋",
+        title: `${prof?.nickname ?? "Someone"} sent you a friend request`,
+        actions: [
+          {
+            label: "Accept",
+            primary: true,
+            onClick: async () => {
+              await respondFriendRequest(row.id, true);
+              await refresh();
+            },
+          },
+          {
+            label: "Decline",
+            onClick: async () => {
+              await respondFriendRequest(row.id, false);
+              await refresh();
+            },
+          },
+        ],
+      });
+    },
+    [user, supabase, showToast, refresh]
+  );
+
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -82,13 +135,13 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "friendships" },
-        () => refresh()
+        onFriendshipChange
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refresh]);
+  }, [user, supabase, onFriendshipChange]);
 
   const sendRequest = useCallback(
     async (nickname: string) => {

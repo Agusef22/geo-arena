@@ -40,13 +40,13 @@ export default function RootLayout({
       <head />
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <PresenceProvider>
-            <FriendsProvider>
-              <ToastProvider>
+          <ToastProvider>
+            <PresenceProvider>
+              <FriendsProvider>
                 <InvitationsProvider>{children}</InvitationsProvider>
-              </ToastProvider>
-            </FriendsProvider>
-          </PresenceProvider>
+              </FriendsProvider>
+            </PresenceProvider>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
