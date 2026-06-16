@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 const EMOJI_OPTIONS = [
   "🌍", "🌎", "🌏", "🗺️", "📍", "🧭", "✈️", "🚀",
@@ -13,6 +14,7 @@ const EMOJI_OPTIONS = [
 
 export default function ProfileSetup() {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const [nickname, setNickname] = useState("");
   const [emoji, setEmoji] = useState("🌍");
   const [loading, setLoading] = useState(false);
@@ -75,9 +77,8 @@ export default function ProfileSetup() {
       emoji,
     });
 
-    setLoading(false);
-
     if (insertError) {
+      setLoading(false);
       if (insertError.code === "23505") {
         setError("That nickname is taken, try another");
       } else {
@@ -86,6 +87,9 @@ export default function ProfileSetup() {
       return;
     }
 
+    // Tell the AuthContext to pick up the just-created profile, so the home
+    // shows us logged in immediately (no refresh needed).
+    await refreshProfile();
     router.replace("/");
   }
 
