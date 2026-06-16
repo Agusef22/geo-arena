@@ -59,3 +59,19 @@ const REGION_BY_KEY = new Map(REGIONS.map((r) => [r.key, r]));
 export function resolveRegion(key: string | null | undefined): Region {
   return (key && REGION_BY_KEY.get(key)) || REGIONS[0];
 }
+
+// Reverse-map a stored countries[] back to a region label (for display).
+// Null/empty means worldwide → no label.
+export function regionLabelFromCountries(
+  countries: string[] | null | undefined
+): string | null {
+  if (!countries || countries.length === 0) return null;
+  const set = new Set(countries);
+  const match = REGIONS.find(
+    (r) =>
+      r.countries &&
+      r.countries.length === set.size &&
+      r.countries.every((c) => set.has(c))
+  );
+  return match ? `${match.emoji} ${match.label}` : "🗺️ Custom region";
+}

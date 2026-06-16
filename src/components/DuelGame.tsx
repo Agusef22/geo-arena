@@ -12,6 +12,7 @@ import {
 import { findGameLocations, type Location } from "@/lib/locations";
 import { getRandomPoolLocations } from "@/lib/supabase/pool";
 import { inviteToExistingDuel } from "@/lib/supabase/friends";
+import { regionLabelFromCountries } from "@/lib/regions";
 import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
 import DuelRoundResult from "./DuelRoundResult";
@@ -137,6 +138,16 @@ export default function DuelGame({ code }: { code: string }) {
   const [supabase] = useState(() => createClient());
   // Friends invited from the waiting room (to show an "invited" state).
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  // Host-chosen game modes (read from the duel row in init).
+  const [settings, setSettings] = useState<{
+    timed: boolean;
+    noMove: boolean;
+    countries: string[] | null;
+  }>({ timed: false, noMove: false, countries: null });
+  // Mirror of settings.timed for closures that shouldn't list it as a dep.
+  const timedRef = useRef(false);
+  // Round-start anchor (local clock) for the Timed countdown.
+  const roundStartRef = useRef<{ round: number; at: number } | null>(null);
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [duelId, setDuelId] = useState<string | null>(null);
@@ -198,6 +209,9 @@ export default function DuelGame({ code }: { code: string }) {
   useEffect(() => {
     opponentScoreRef.current = opponentScore;
   }, [opponentScore]);
+  useEffect(() => {
+    timedRef.current = settings.timed;
+  }, [settings.timed]);
 
   // --- Helper: check and resolve guesses for a round ---
   // The DB trigger (resolve_duel_guess) calculates distance_km, penalty, and
@@ -318,7 +332,7 @@ export default function DuelGame({ code }: { code: string }) {
     async function init() {
       const { data: duel } = await supabase
         .from("duels")
-        .select("id, status, locations, current_round")
+        .select("id, status, locations, current_round, timed, no_move, countries")
         .eq("code", code)
         .single();
 
@@ -329,6 +343,11 @@ export default function DuelGame({ code }: { code: string }) {
       }
 
       setDuelId(duel.id);
+      setSettings({
+        timed: !!duel.timed,
+        noMove: !!duel.no_move,
+        countries: (duel.countries as string[] | null) ?? null,
+      });
 
       // Fetch players and all guesses in parallel
       const [playersResult, guessesResult] = await Promise.all([
@@ -458,8 +477,9 @@ export default function DuelGame({ code }: { code: string }) {
       }
       if (!svServiceRef.current) return;
 
-      // Prefer the curated pool; fall back to a live search if not seeded yet.
-      let locs = await getRandomPoolLocations(DUEL_ROUNDS);
+      // Prefer the curated pool (scoped to the chosen region); fall back to a
+      // live search if not seeded yet.
+      let locs = await getRandomPoolLocations(DUEL_ROUNDS, settings.countries);
       if (locs.length < DUEL_ROUNDS) {
         locs = await findGameLocations(
           svServiceRef.current,
@@ -490,7 +510,7 @@ export default function DuelGame({ code }: { code: string }) {
     }
 
     generateLocations();
-  }, [phase, isHost, duelId, supabase]);
+  }, [phase, isHost, duelId, supabase, settings.countries]);
 
   // ====== Step 3b: Guest listens for locations + poll fallback ======
   useEffect(() => {
@@ -611,10 +631,11 @@ export default function DuelGame({ code }: { code: string }) {
         hasSubmittedRef.current = true;
         if (phase === "playing") setPhase("waiting-opponent");
         setGuessTimer(null);
-      } else if (opponentGuess && !hasSubmittedRef.current) {
+      } else if (opponentGuess && !hasSubmittedRef.current && !timedRef.current) {
         // Opponent guessed but I haven't — count 30s from when WE first saw it
         // (local clock only). Anchoring to the server's created_at vs our
         // Date.now() let a fast device clock expire the timer instantly.
+        // (In Timed mode the timer is round-start based instead — see below.)
         if (
           !opponentSeenRef.current ||
           opponentSeenRef.current.round !== currentRound
@@ -922,6 +943,17 @@ export default function DuelGame({ code }: { code: string }) {
     };
   }, [duelId, user, phase, supabase]);
 
+  // Timed mode: arm a 30s countdown once at the start of each playing round.
+  // Step 6b then counts it down and auto-submits a far guess on timeout.
+  useEffect(() => {
+    if (!settings.timed || phase !== "playing") return;
+    if (roundStartRef.current?.round !== currentRound) {
+      roundStartRef.current = { round: currentRound, at: Date.now() };
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setGuessTimer(GUESS_TIME_LIMIT);
+    }
+  }, [settings.timed, phase, currentRound]);
+
   const currentLocation = locations[currentRound];
 
   // ===== RENDERS =====
@@ -963,6 +995,27 @@ export default function DuelGame({ code }: { code: string }) {
             {code}
           </p>
         </div>
+
+        {/* Mode chips */}
+        {(settings.timed || settings.noMove || settings.countries) && (
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+            {regionLabelFromCountries(settings.countries) && (
+              <span className="text-xs bg-zinc-800 text-neutral-300 rounded-full px-3 py-1">
+                {regionLabelFromCountries(settings.countries)}
+              </span>
+            )}
+            {settings.timed && (
+              <span className="text-xs bg-zinc-800 text-neutral-300 rounded-full px-3 py-1">
+                ⏱️ Timed
+              </span>
+            )}
+            {settings.noMove && (
+              <span className="text-xs bg-zinc-800 text-neutral-300 rounded-full px-3 py-1">
+                🚷 No Move
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Invite online friends directly */}
         {friends.some((f) => f.online) && (
@@ -1199,6 +1252,7 @@ export default function DuelGame({ code }: { code: string }) {
           lng={currentLocation.lng}
           panoId={currentLocation.panoId}
           heading={currentLocation.heading}
+          move={!settings.noMove}
         />
       </div>
 

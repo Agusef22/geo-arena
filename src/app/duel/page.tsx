@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { generateDuelCode, DUEL_STARTING_SCORE } from "@/lib/duel";
+import { REGIONS, resolveRegion } from "@/lib/regions";
 
 export default function DuelLobby() {
   const router = useRouter();
@@ -16,6 +17,10 @@ export default function DuelLobby() {
   // Code of a duel the player is already in (waiting/playing), so they can
   // jump back in with one click after closing the tab.
   const [activeCode, setActiveCode] = useState<string | null>(null);
+  // Game mode chosen by the host when creating.
+  const [timed, setTimed] = useState(false);
+  const [noMove, setNoMove] = useState(false);
+  const [regionKey, setRegionKey] = useState("world");
 
   useEffect(() => {
     if (!user) return;
@@ -41,6 +46,9 @@ export default function DuelLobby() {
         code,
         status: "waiting",
         locations: null,
+        timed,
+        no_move: noMove,
+        countries: resolveRegion(regionKey).countries,
       });
 
       if (!insertError) break;
@@ -238,6 +246,28 @@ export default function DuelLobby() {
           </Link>
         )}
 
+        {/* Game options */}
+        <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-neutral-300">Region</span>
+            <select
+              value={regionKey}
+              onChange={(e) => setRegionKey(e.target.value)}
+              className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer"
+            >
+              {REGIONS.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.emoji} {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <ModeToggle label="⏱️ Timed" active={timed} onClick={() => setTimed((v) => !v)} />
+            <ModeToggle label="🚷 No Move" active={noMove} onClick={() => setNoMove((v) => !v)} />
+          </div>
+        </div>
+
         {/* Create game */}
         <button
           onClick={handleCreate}
@@ -280,5 +310,29 @@ export default function DuelLobby() {
         )}
       </div>
     </main>
+  );
+}
+
+function ModeToggle({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 text-sm font-medium py-2 rounded-lg border transition-colors cursor-pointer ${
+        active
+          ? "bg-emerald-950/50 border-emerald-700/60 text-emerald-300"
+          : "bg-neutral-800/50 border-neutral-700 text-neutral-400 hover:text-neutral-200"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
