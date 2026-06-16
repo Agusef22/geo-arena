@@ -16,6 +16,10 @@ interface StreetViewProps {
   // When false (No-Move difficulty), the player can look around but can't walk
   // (no navigation links, no click-to-go). Defaults to true.
   move?: boolean;
+  // Fired when the panorama has actually rendered (tiles loaded), or failed.
+  // Lets the game avoid starting the round timer over a blank/broken view.
+  onReady?: () => void;
+  onError?: () => void;
 }
 
 export default function StreetView({
@@ -24,12 +28,21 @@ export default function StreetView({
   panoId,
   heading = 0,
   move = true,
+  onReady,
+  onError,
 }: StreetViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const startPositionRef = useRef<google.maps.LatLng | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [moved, setMoved] = useState(false);
+  // Stable refs so the load effect doesn't depend on (changing) callbacks.
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+  }, [onReady, onError]);
   // Live POV heading (degrees, 0 = North) driving the compass. Seeded with the
   // initial heading so the bar is correct before the first pov_changed.
   const [facing, setFacing] = useState(heading);
@@ -45,7 +58,10 @@ export default function StreetView({
     // so we coalesce to at most one setState per frame.
     let rafId: number | null = null;
     const reveal = () => {
-      if (!cancelled) setStatus("ok");
+      if (!cancelled) {
+        setStatus("ok");
+        onReadyRef.current?.();
+      }
     };
 
     const sv = new google.maps.StreetViewService();
@@ -150,6 +166,7 @@ export default function StreetView({
           sv.getPanorama(coordinateRequest, handle(false));
         } else {
           setStatus("error");
+          onErrorRef.current?.();
         }
       };
 

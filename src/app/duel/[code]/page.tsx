@@ -3,6 +3,8 @@
 import { use, useState } from "react";
 import Script from "next/script";
 import DuelGame from "@/components/DuelGame";
+import MapsError from "@/components/MapsError";
+import { useMapsAuthError } from "@/lib/useMapsAuthError";
 
 export default function DuelGamePage({
   params,
@@ -10,10 +12,13 @@ export default function DuelGamePage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = use(params);
+  const mapsAuthFailed = useMapsAuthError();
   // Lazy init: skip the loading state if the Maps script is already loaded.
   const [mapsLoaded, setMapsLoaded] = useState(
     () => typeof window !== "undefined" && !!window.google?.maps
   );
+
+  if (mapsAuthFailed) return <MapsError />;
 
   if (!mapsLoaded) {
     return (

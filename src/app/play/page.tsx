@@ -4,19 +4,24 @@ import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import Game from "@/components/Game";
+import MapsError from "@/components/MapsError";
 import { resolveRegion } from "@/lib/regions";
+import { useMapsAuthError } from "@/lib/useMapsAuthError";
 
 function PlayInner() {
   const params = useSearchParams();
   const region = resolveRegion(params.get("region"));
   const timed = params.get("timed") === "1";
   const noMove = params.get("nomove") === "1";
+  const mapsAuthFailed = useMapsAuthError();
 
   // Lazy init: if the Maps script is already on the page (e.g. client-side
   // navigation from another map route), skip the loading state entirely.
   const [mapsLoaded, setMapsLoaded] = useState(
     () => typeof window !== "undefined" && !!window.google?.maps
   );
+
+  if (mapsAuthFailed) return <MapsError />;
 
   if (!mapsLoaded) {
     return (

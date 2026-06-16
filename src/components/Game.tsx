@@ -52,6 +52,9 @@ export default function Game({
   // Timed difficulty: seconds left in the current round (null = no timer).
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const timedOutRef = useRef(-1);
+  // Whether the Street View panorama for the current round has actually
+  // rendered. The round timer must not run over a blank/broken view.
+  const [viewReady, setViewReady] = useState(false);
   const { playGood, playBad, playNext } = useSoundEffects();
   const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
 
@@ -100,6 +103,7 @@ export default function Game({
     }
 
     gameIdRef.current = gameId;
+    setViewReady(false);
     setLocations(locs);
     setCurrentRound(0);
     setRounds([]);
@@ -200,6 +204,7 @@ export default function Game({
         submit();
       }
     } else {
+      setViewReady(false);
       setCurrentRound((r) => r + 1);
       setPhase("playing");
       setMapOpen(false);
@@ -218,17 +223,18 @@ export default function Game({
     return () => window.removeEventListener("keydown", handler);
   }, [phase, handleNext]);
 
-  // Timed difficulty: arm a 30s countdown at the start of each playing round.
+  // Timed difficulty: arm a 30s countdown once the round's panorama is actually
+  // visible — never over a blank/broken view (e.g. Maps failed to load).
   useEffect(() => {
-    // Intentional: derive the round timer from the phase/round transition.
+    // Intentional: derive the round timer from the phase/view transition.
     /* eslint-disable react-hooks/set-state-in-effect */
-    if (!timed || phase !== "playing") {
+    if (!timed || phase !== "playing" || !viewReady) {
       setRoundTimer(null);
       return;
     }
     setRoundTimer(TIMED_ROUND_SECONDS);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [timed, phase, currentRound]);
+  }, [timed, phase, currentRound, viewReady]);
 
   // Tick the timer; when it hits 0 auto-submit a far guess (max penalty) so the
   // round still resolves, mirroring how the duel handles a timeout.
@@ -398,6 +404,7 @@ export default function Game({
           panoId={currentLocation.panoId}
           heading={currentLocation.heading}
           move={!noMove}
+          onReady={() => setViewReady(true)}
         />
       </div>
 

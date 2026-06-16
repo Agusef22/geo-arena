@@ -148,6 +148,8 @@ export default function DuelGame({ code }: { code: string }) {
   const timedRef = useRef(false);
   // Round-start anchor (local clock) for the Timed countdown.
   const roundStartRef = useRef<{ round: number; at: number } | null>(null);
+  // Whether the current round's panorama has actually rendered (gate the timer).
+  const [viewReady, setViewReady] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [duelId, setDuelId] = useState<string | null>(null);
@@ -745,6 +747,7 @@ export default function DuelGame({ code }: { code: string }) {
     setIReady(false);
     setOpponentReady(false);
     setGuessTimer(null);
+    setViewReady(false);
     setCurrentRound((r) => r + 1);
     setPhase("playing");
     setMapOpen(false);
@@ -943,16 +946,16 @@ export default function DuelGame({ code }: { code: string }) {
     };
   }, [duelId, user, phase, supabase]);
 
-  // Timed mode: arm a 30s countdown once at the start of each playing round.
-  // Step 6b then counts it down and auto-submits a far guess on timeout.
+  // Timed mode: arm a 30s countdown once the round's panorama is visible (never
+  // over a blank/broken view). Step 6b counts it down + auto-submits on timeout.
   useEffect(() => {
-    if (!settings.timed || phase !== "playing") return;
+    if (!settings.timed || phase !== "playing" || !viewReady) return;
     if (roundStartRef.current?.round !== currentRound) {
       roundStartRef.current = { round: currentRound, at: Date.now() };
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setGuessTimer(GUESS_TIME_LIMIT);
     }
-  }, [settings.timed, phase, currentRound]);
+  }, [settings.timed, phase, currentRound, viewReady]);
 
   const currentLocation = locations[currentRound];
 
@@ -1253,6 +1256,7 @@ export default function DuelGame({ code }: { code: string }) {
           panoId={currentLocation.panoId}
           heading={currentLocation.heading}
           move={!settings.noMove}
+          onReady={() => setViewReady(true)}
         />
       </div>
 
