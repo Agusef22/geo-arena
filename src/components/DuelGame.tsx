@@ -884,18 +884,22 @@ export default function DuelGame({ code }: { code: string }) {
   );
 
   // ====== Heartbeat + auto-end on abandonment ======
-  // While the game is live, mark myself present every few seconds and check if
-  // the opponent's heartbeat has gone stale (they left the duel). If so, the
-  // server ends the duel in my favor (~15s after they leave).
+  // While I'm in the duel room, mark myself present every few seconds. This
+  // keeps the duel alive (the cleanup job deletes duels where everyone's
+  // heartbeat is stale) and lets the server end an in-progress duel in my
+  // favor (~15s) if the opponent leaves. claim_abandoned_duel self-guards to
+  // 'playing' duels, so heartbeating while waiting/loading is harmless.
   useEffect(() => {
-    const LIVE: Phase[] = [
+    const IN_ROOM: Phase[] = [
+      "waiting",
+      "loading",
       "countdown",
       "playing",
       "waiting-opponent",
       "waiting-next",
       "result",
     ];
-    if (!duelId || !user || !LIVE.includes(phase)) return;
+    if (!duelId || !user || !IN_ROOM.includes(phase)) return;
 
     let cancelled = false;
     const beat = async () => {
