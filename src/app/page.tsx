@@ -174,7 +174,7 @@ export default function Home() {
               <span>Drop me in</span>
             </Link>
             <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-600">
-              5 rounds · 10,000 pts · survive or die
+              5 rounds · up to 25,000 pts · the closer the better
             </span>
           </div>
         </div>
@@ -221,7 +221,8 @@ export default function Home() {
               </svg>
             </div>
             <p className="text-sm text-neutral-400 leading-relaxed mb-6 min-h-[3em]">
-              Challenge a friend head-to-head. Same locations, closest guess wins.
+              Challenge a friend head-to-head. Win rounds to drain their HP —
+              last one standing wins.
             </p>
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700">

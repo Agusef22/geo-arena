@@ -179,11 +179,6 @@ export default function ProfilePage() {
                   <span className="text-sm text-neutral-300">
                     {g.roundsPlayed} {g.roundsPlayed === 1 ? "round" : "rounds"}
                   </span>
-                  {g.gameOver && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider text-red-500/80">
-                      game over
-                    </span>
-                  )}
                 </div>
                 <span className="text-sm font-bold text-yellow-400 tabular-nums">
                   {g.score.toLocaleString()}

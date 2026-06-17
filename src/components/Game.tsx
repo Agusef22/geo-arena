@@ -198,9 +198,9 @@ export default function Game({
   }, [currentRound, rounds, playNext]);
 
   // Abandoning a logged-in game forfeits it: we submit max-distance guesses
-  // (the antipode of every stored location) so the server scores it as a clean
-  // game over. Submitting the *real* partial guesses instead would let a player
-  // bank a high score off a single good round, so we never do that on leave.
+  // (the antipode of every stored location) so the server scores it near zero.
+  // Submitting the *real* partial guesses instead would let a player bank a
+  // high score off a single good round, so we never do that on leave.
   const confirmLeave = useCallback(() => {
     if (gameIdRef.current && !savedRef.current && locations.length > 0) {
       savedRef.current = true;

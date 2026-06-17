@@ -227,7 +227,7 @@ export default function DuelLobby() {
           Duel
         </h1>
         <p className="text-neutral-500 text-sm mb-8">
-          Challenge a friend. Same locations, closest guess wins.
+          Challenge a friend. Same locations — win rounds to drain their HP.
         </p>
 
         {/* Resume a game already in progress */}
