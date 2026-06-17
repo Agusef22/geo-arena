@@ -14,19 +14,19 @@ function Globe() {
       aria-hidden="true"
     >
       {/* Sphere outline */}
-      <circle cx="300" cy="300" r="260" stroke="#2a2a2a" strokeWidth="1" />
+      <circle cx="300" cy="300" r="260" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
 
       {/* Parallels — horizontal ellipses, decreasing ry */}
-      <ellipse cx="300" cy="300" rx="260" ry="225" stroke="#1c1c1c" />
-      <ellipse cx="300" cy="300" rx="260" ry="160" stroke="#1c1c1c" />
-      <ellipse cx="300" cy="300" rx="260" ry="85" stroke="#1c1c1c" />
-      <line x1="40" y1="300" x2="560" y2="300" stroke="#2a2a2a" />
+      <ellipse cx="300" cy="300" rx="260" ry="225" stroke="rgba(255,255,255,0.08)" />
+      <ellipse cx="300" cy="300" rx="260" ry="160" stroke="rgba(255,255,255,0.08)" />
+      <ellipse cx="300" cy="300" rx="260" ry="85" stroke="rgba(255,255,255,0.08)" />
+      <line x1="40" y1="300" x2="560" y2="300" stroke="rgba(255,255,255,0.18)" />
 
       {/* Meridians — vertical ellipses, decreasing rx */}
-      <ellipse cx="300" cy="300" rx="225" ry="260" stroke="#1c1c1c" />
-      <ellipse cx="300" cy="300" rx="160" ry="260" stroke="#1c1c1c" />
-      <ellipse cx="300" cy="300" rx="85" ry="260" stroke="#1c1c1c" />
-      <line x1="300" y1="40" x2="300" y2="560" stroke="#2a2a2a" />
+      <ellipse cx="300" cy="300" rx="225" ry="260" stroke="rgba(255,255,255,0.08)" />
+      <ellipse cx="300" cy="300" rx="160" ry="260" stroke="rgba(255,255,255,0.08)" />
+      <ellipse cx="300" cy="300" rx="85" ry="260" stroke="rgba(255,255,255,0.08)" />
+      <line x1="300" y1="40" x2="300" y2="560" stroke="rgba(255,255,255,0.18)" />
 
       {/* Sonar pings — three live locations, multi-color, staggered */}
       <g>
@@ -124,11 +124,12 @@ function Globe() {
 
 export default function Home() {
   return (
-    <main className="bg-[#0a0a0a] text-[#fafaf9] relative overflow-x-hidden">
+    <main className="pop-bg text-[#fafaf9] relative overflow-x-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 sm:px-12 pt-6 max-w-[1400px] mx-auto w-full">
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-          GeoArena
+      <header className="relative z-10 flex items-center justify-between px-6 sm:px-12 pt-6 max-w-[1400px] mx-auto w-full">
+        <span className="font-display text-xl font-extrabold tracking-tight">
+          <span className="text-pop-gradient">Geo</span>
+          <span className="text-white">Arena</span>
         </span>
         <UserMenu />
       </header>
@@ -136,16 +137,16 @@ export default function Home() {
       {/* Hero — fills viewport */}
       <section className="min-h-[calc(100dvh-80px)] grid lg:grid-cols-[1.1fr_1fr] items-center gap-12 lg:gap-8 px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-8">
         {/* Left: text */}
-        <div className="z-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-600 mb-6 flex items-center gap-2">
-            <span className="text-emerald-400">↳</span>
+        <div className="relative z-10">
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-300">
+            <span className="text-base">🌍</span>
             How well do you know Earth?
           </p>
 
           <h1 className="font-display font-extrabold leading-[0.88] tracking-[-0.045em] text-[clamp(3.5rem,10vw,9.5rem)] whitespace-nowrap">
-            Geo
-            <span className="font-light text-cyan-400">°</span>
-            Arena
+            <span className="text-pop-gradient">Geo</span>
+            <span className="font-light text-amber-300">°</span>
+            <span className="text-white">Arena</span>
           </h1>
 
           <p className="mt-8 max-w-[36ch] text-base sm:text-lg text-neutral-400 leading-relaxed">
@@ -153,34 +154,38 @@ export default function Home() {
             signs, the trees, the sky. Pin where you think you are.
           </p>
 
-          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-5">
             <Link
               href="/play"
-              className="group inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-[#0a0a0a] font-semibold text-base px-7 py-3.5 rounded-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_32px_-8px_rgba(16,185,129,0.55)]"
+              style={{ ["--pop-shadow" as string]: "#047857" }}
+              className="pop-press group inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-[#06281c] font-extrabold text-lg px-8 py-4 rounded-2xl"
             >
               <svg
-                width="16"
-                height="16"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="anim-wiggle"
               >
                 <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
                 <circle cx="12" cy="10" r="3" />
               </svg>
               <span>Drop me in</span>
             </Link>
-            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-600">
-              5 rounds · up to 25,000 pts · the closer the better
+            <span className="text-sm font-medium text-neutral-400">
+              5 rounds · up to{" "}
+              <span className="font-bold text-amber-300">25,000</span> pts · the
+              closer the better
             </span>
           </div>
         </div>
 
         {/* Right: wireframe globe with cardinal markers */}
-        <div className="hidden lg:block relative aspect-square w-full max-w-[560px] mx-auto">
+        <div className="anim-float hidden lg:block relative z-10 aspect-square w-full max-w-[560px] mx-auto">
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 font-mono text-[10px] uppercase tracking-[0.32em] text-neutral-600">
             N
           </span>
@@ -197,39 +202,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Modes section — coming soon */}
-      <section className="px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-20 border-t border-neutral-900">
+      {/* Modes section */}
+      <section className="relative z-10 px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-20 border-t border-white/5">
         <div className="flex items-center justify-between mb-8">
-          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500 flex items-center gap-2">
-            <span className="text-emerald-400">↳</span>
-            Game modes
-          </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-700 hidden sm:block">
-            03 / playable
+          <h2 className="font-display text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            <span>🎮</span> Pick your game
+          </h2>
+          <p className="text-xs font-semibold text-neutral-500 hidden sm:block">
+            3 modes · ready to play
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ChallengePicker />
-          <Link href="/duel" className="group relative border border-neutral-900 rounded-2xl p-6 bg-[#0c0c0c] hover:border-emerald-900/50 hover:bg-emerald-950/10 transition-colors">
+          <Link
+            href="/duel"
+            style={{ ["--pop-shadow" as string]: "#9f1239" }}
+            className="pop-press group relative rounded-3xl p-6 bg-gradient-to-br from-rose-500 to-pink-600 text-white overflow-hidden"
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-2xl font-extrabold text-neutral-200 tracking-tight">
-                Duel
+              <h3 className="font-display text-2xl font-extrabold tracking-tight flex items-center gap-2">
+                <span className="anim-wiggle inline-block">⚔️</span> Duel
               </h3>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/90">
                 <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
               </svg>
             </div>
-            <p className="text-sm text-neutral-400 leading-relaxed mb-6 min-h-[3em]">
+            <p className="text-sm text-rose-50/90 leading-relaxed mb-6 min-h-[3em]">
               Challenge a friend head-to-head. Win rounds to drain their HP —
               last one standing wins.
             </p>
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-100/80">
                 1 vs 1
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-500 px-2.5 py-1 border border-emerald-900/50 rounded-full">
-                Play
+              <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
+                Play →
               </span>
             </div>
           </Link>
@@ -238,7 +246,7 @@ export default function Home() {
       </section>
 
       {/* Leaderboard + Stats */}
-      <section className="px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-16 border-t border-neutral-900">
+      <section className="relative z-10 px-6 sm:px-12 max-w-[1400px] mx-auto w-full py-16 border-t border-white/5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-8">
           <Leaderboard />
           <PlayerStatsCard />
@@ -246,11 +254,11 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="px-6 sm:px-12 pb-8 pt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 max-w-[1400px] mx-auto w-full">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-600">
-          14,927 streets · 195 countries indexed
+      <footer className="relative z-10 px-6 sm:px-12 pb-8 pt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 max-w-[1400px] mx-auto w-full">
+        <p className="text-xs font-medium text-neutral-500">
+          🛰️ 100k+ streets · 195 countries indexed
         </p>
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-700">
+        <p className="text-xs font-medium text-neutral-600">
           Powered by Google Street View
         </p>
       </footer>

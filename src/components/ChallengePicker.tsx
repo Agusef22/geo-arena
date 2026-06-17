@@ -19,54 +19,54 @@ export default function ChallengePicker() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative border border-neutral-900 rounded-2xl p-6 bg-[#0c0c0c] hover:border-emerald-900/50 hover:bg-emerald-950/10 transition-colors">
+    <div className="relative rounded-3xl p-6 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-[0_10px_30px_-10px_rgba(99,102,241,0.6)] hover:-translate-y-1 transition-transform duration-200">
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full text-left cursor-pointer"
         aria-expanded={open}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-2xl font-extrabold text-neutral-200 tracking-tight">
-            Challenge
+          <h3 className="font-display text-2xl font-extrabold tracking-tight flex items-center gap-2">
+            <span className="anim-wiggle inline-block">🔥</span> Challenge
           </h3>
           <svg
-            width="14"
-            height="14"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`text-emerald-500 transition-transform ${open ? "rotate-180" : ""}`}
+            className={`text-white/90 transition-transform ${open ? "rotate-180" : ""}`}
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
         </div>
-        <p className="text-sm text-neutral-400 leading-relaxed mb-6 min-h-[3em]">
+        <p className="text-sm text-indigo-50/90 leading-relaxed mb-6 min-h-[3em]">
           Crank the difficulty. Beat the clock, or guess from a single frozen
           view.
         </p>
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-100/80">
             harder
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-500 px-2.5 py-1 border border-emerald-900/50 rounded-full">
-            {open ? "Pick one" : "Play"}
+          <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
+            {open ? "Pick one" : "Play →"}
           </span>
         </div>
       </button>
 
       {open && (
-        <div className="mt-4 pt-4 border-t border-neutral-900 space-y-2">
+        <div className="mt-4 pt-4 border-t border-white/20 space-y-2 anim-pop-in">
           {CHALLENGES.map((c) => (
             <Link
               key={c.href}
               href={c.href}
-              className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-neutral-900/50 hover:bg-emerald-950/40 text-sm text-neutral-300 hover:text-emerald-300 transition-colors"
+              className="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-white/15 hover:bg-white/25 active:scale-[0.98] text-sm font-medium transition-all"
             >
-              <span className="font-medium">{c.label}</span>
-              <span className="text-[11px] text-neutral-500">{c.desc}</span>
+              <span>{c.label}</span>
+              <span className="text-[11px] text-indigo-100/80">{c.desc}</span>
             </Link>
           ))}
         </div>
