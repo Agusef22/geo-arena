@@ -77,7 +77,7 @@ export default function FriendsPage() {
 
   if (authLoading || !user) {
     return (
-      <main className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <main className="pop-bg min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-500" />
       </main>
     );
@@ -86,17 +86,17 @@ export default function FriendsPage() {
   const trimmed = query.trim();
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-[#fafaf9]">
-      <div className="max-w-2xl mx-auto px-6 py-10">
+    <main className="pop-bg min-h-screen text-[#fafaf9]">
+      <div className="relative z-10 max-w-2xl mx-auto px-6 py-10">
         <Link
           href="/"
-          className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500 hover:text-emerald-400 transition-colors"
+          className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
         >
           ← Back
         </Link>
 
-        <h1 className="font-display text-3xl font-extrabold tracking-tight mt-6 mb-8">
-          Friends
+        <h1 className="font-display text-3xl font-extrabold tracking-tight mt-6 mb-8 flex items-center gap-2">
+          <span>👥</span> Friends
         </h1>
 
         {/* Search users */}
@@ -105,7 +105,7 @@ export default function FriendsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search players by nickname"
-            className="w-full bg-neutral-900 border border-neutral-800 focus:border-emerald-700 outline-none rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 transition-colors"
+            className="input-pop text-sm"
           />
         </div>
 
@@ -134,7 +134,7 @@ export default function FriendsPage() {
                     {rel.kind === "incoming" && (
                       <button
                         onClick={() => respondRequest(rel.friendshipId, true)}
-                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#06281c] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
                       >
                         Accept request
                       </button>
@@ -142,7 +142,7 @@ export default function FriendsPage() {
                     {rel.kind === "none" && (
                       <button
                         onClick={() => sendRequest(u.nickname)}
-                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#06281c] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
                       >
                         Add
                       </button>
@@ -157,7 +157,7 @@ export default function FriendsPage() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-14 bg-neutral-900/50 rounded-lg animate-pulse" />
+              <div key={i} className="h-14 bg-white/5 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : (
@@ -169,7 +169,7 @@ export default function FriendsPage() {
                   <Row key={r.friendshipId} emoji={r.emoji} nickname={r.nickname}>
                     <button
                       onClick={() => respondRequest(r.friendshipId, true)}
-                      className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                      className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#06281c] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
                     >
                       Accept
                     </button>
@@ -197,7 +197,7 @@ export default function FriendsPage() {
                       <button
                         onClick={() => handleChallenge(f.id)}
                         disabled={challengingId === f.id}
-                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#0a0a0a] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                        className="text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-[#06281c] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
                       >
                         {challengingId === f.id ? "..." : "⚔️ Challenge"}
                       </button>
@@ -236,14 +236,14 @@ export default function FriendsPage() {
                 {ranking.map((r, i) => (
                   <div
                     key={r.id}
-                    className={`flex items-center gap-3 rounded-lg px-4 py-2.5 ${
+                    className={`flex items-center gap-3 rounded-xl px-4 py-2.5 ${
                       r.isMe
-                        ? "bg-cyan-950/30 border border-cyan-900/30"
-                        : "bg-neutral-900/50"
+                        ? "bg-cyan-500/15 border border-cyan-400/30"
+                        : "bg-white/5"
                     }`}
                   >
-                    <span className="font-mono text-sm font-bold w-5 text-right text-neutral-500">
-                      {i + 1}
+                    <span className="text-sm font-bold w-5 text-center text-neutral-400">
+                      {["🥇", "🥈", "🥉"][i] ?? i + 1}
                     </span>
                     <span className="text-lg">{r.emoji}</span>
                     <span
@@ -274,12 +274,9 @@ export default function FriendsPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-emerald-400">↳</span>
-        <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
-          {title}
-        </span>
-      </div>
+      <h2 className="font-display text-lg font-extrabold text-white mb-3">
+        {title}
+      </h2>
       <div className="space-y-1.5">{children}</div>
     </div>
   );
@@ -300,8 +297,8 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg px-4 py-3 ${
-        muted ? "bg-neutral-900/30" : "bg-neutral-900/50"
+      className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
+        muted ? "bg-white/[0.03]" : "bg-white/5"
       }`}
     >
       <span className="text-xl">{emoji}</span>

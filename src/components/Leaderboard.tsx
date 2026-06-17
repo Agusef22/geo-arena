@@ -25,6 +25,8 @@ const RANK_COLORS: Record<number, string> = {
   3: "text-amber-600",
 };
 
+const MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
 export default function Leaderboard() {
   const { profile } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -40,12 +42,9 @@ export default function Leaderboard() {
   if (loading) {
     return (
       <div className="w-full max-w-md mx-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-emerald-400">↳</span>
-          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
-            Leaderboard
-          </span>
-        </div>
+        <h3 className="flex items-center gap-2 mb-4 font-display text-lg font-extrabold text-white">
+          <span>🏆</span> Leaderboard
+        </h3>
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
@@ -61,12 +60,9 @@ export default function Leaderboard() {
   if (entries.length === 0) {
     return (
       <div className="w-full max-w-md mx-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-emerald-400">↳</span>
-          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
-            Leaderboard
-          </span>
-        </div>
+        <h3 className="flex items-center gap-2 mb-4 font-display text-lg font-extrabold text-white">
+          <span>🏆</span> Leaderboard
+        </h3>
         <p className="text-neutral-600 text-sm text-center py-8">
           No games yet. Be the first to play!
         </p>
@@ -89,19 +85,19 @@ export default function Leaderboard() {
           return (
             <div
               key={`${entry.nickname}-${entry.created_at}`}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                 isYou
-                  ? "bg-emerald-950/30 border border-emerald-900/30"
-                  : "bg-neutral-900/50 hover:bg-neutral-900/80"
+                  ? "bg-emerald-500/15 border border-emerald-400/30"
+                  : "bg-white/5 hover:bg-white/10"
               }`}
             >
               {/* Rank */}
               <span
-                className={`font-mono text-sm font-bold w-6 text-right ${
-                  RANK_COLORS[entry.rank] ?? "text-neutral-600"
+                className={`text-sm font-bold w-6 text-center ${
+                  RANK_COLORS[entry.rank] ?? "text-neutral-500"
                 }`}
               >
-                {entry.rank}
+                {MEDALS[entry.rank] ?? entry.rank}
               </span>
 
               {/* Avatar + name */}

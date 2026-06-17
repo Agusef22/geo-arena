@@ -32,7 +32,7 @@ export default function UserMenu() {
     return (
       <Link
         href="/login"
-        className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-400 hover:text-emerald-400 transition-colors"
+        className="rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-sm font-semibold text-white transition-colors"
       >
         Sign in
       </Link>
@@ -43,13 +43,13 @@ export default function UserMenu() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="relative flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+        className="relative flex items-center gap-2 rounded-full bg-white/5 hover:bg-white/10 pl-1.5 pr-3 py-1.5 transition-colors cursor-pointer"
       >
         <span className="text-xl">{profile.emoji}</span>
         {incoming.length > 0 && (
-          <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0a0a0a]" />
+          <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-pink-400 ring-2 ring-[#0e0b1e]" />
         )}
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-400 hidden sm:inline">
+        <span className="text-sm font-semibold text-neutral-200 hidden sm:inline">
           {profile.nickname}
         </span>
       </button>
