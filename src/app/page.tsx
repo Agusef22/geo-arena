@@ -124,7 +124,7 @@ function Globe() {
 
 export default function Home() {
   return (
-    <main className="pop-bg text-[#fafaf9] relative overflow-x-hidden">
+    <main className="pop-bg text-[#fafaf9] relative overflow-x-clip">
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 sm:px-12 pt-6 max-w-[1400px] mx-auto w-full">
         <span className="font-display text-xl font-extrabold tracking-tight">

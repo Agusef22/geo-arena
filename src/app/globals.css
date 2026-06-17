@@ -55,16 +55,15 @@ body {
     radial-gradient(1000px 800px at 50% 120%, rgba(34, 211, 238, 0.14), transparent 60%),
     linear-gradient(165deg, #100b24 0%, #0e0b1e 45%, #0b0a18 100%);
 }
-.pop-bg::before,
-.pop-bg::after {
+/* Decorative drifting blobs, pinned to the viewport (position: fixed) so they
+   never add to the document height or create a second scrollbar. */
+.pop-bg::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   background-repeat: no-repeat;
-}
-.pop-bg::before {
   background:
     radial-gradient(420px 420px at 80% 30%, rgba(251, 191, 36, 0.1), transparent 70%),
     radial-gradient(380px 380px at 10% 70%, rgba(16, 185, 129, 0.12), transparent 70%);
