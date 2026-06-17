@@ -82,18 +82,18 @@ export default function EditProfile() {
 
   if (authLoading || !profile) {
     return (
-      <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex items-center justify-center">
+      <main className="pop-bg min-h-dvh text-[#fafaf9] flex items-center justify-center">
         <p className="text-neutral-500 animate-pulse">Loading...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <main className="pop-bg min-h-dvh text-[#fafaf9] flex flex-col items-center justify-center px-6">
+      <div className="relative z-10 w-full max-w-sm">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-neutral-500 hover:text-neutral-300 transition-colors text-sm mb-8"
+          className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm mb-8"
         >
           <svg
             width="16"
@@ -111,16 +111,16 @@ export default function EditProfile() {
           Back
         </Link>
 
-        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2">
-          Edit profile
+        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
+          <span>✏️</span> Edit profile
         </h1>
-        <p className="text-neutral-500 text-sm mb-8">
+        <p className="text-neutral-400 text-sm mb-8">
           Change your nickname or avatar.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Preview */}
-          <div className="flex items-center gap-3 bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+          <div className="flex items-center gap-3 surface-pop p-4">
             <span className="text-4xl">{emoji}</span>
             <span className="font-display text-xl font-bold text-white">
               {nickname || "YourName"}
@@ -143,7 +143,7 @@ export default function EditProfile() {
               placeholder="GeoMaster"
               required
               maxLength={20}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-colors"
+              className="input-pop"
             />
             <p className="text-xs text-neutral-600 mt-1">
               2-20 characters, letters, numbers, _ or -
@@ -164,7 +164,7 @@ export default function EditProfile() {
                   className={`text-2xl p-1.5 rounded-lg transition-all cursor-pointer ${
                     emoji === e
                       ? "bg-emerald-500/20 ring-2 ring-emerald-500 scale-110"
-                      : "hover:bg-zinc-800"
+                      : "hover:bg-white/10"
                   }`}
                 >
                   {e}
@@ -178,11 +178,12 @@ export default function EditProfile() {
           <button
             type="submit"
             disabled={loading || !nickname.trim()}
-            className={`${
+            style={{ ["--pop-shadow" as string]: "#047857" }}
+            className={`pop-press ${
               saved
                 ? "bg-emerald-600 text-white"
-                : "bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a]"
-            } disabled:bg-zinc-700 disabled:text-zinc-500 active:scale-[0.98] font-semibold py-3 px-6 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed`}
+                : "bg-emerald-500 hover:bg-emerald-400 text-[#06281c]"
+            } disabled:opacity-50 disabled:pointer-events-none font-extrabold py-3.5 px-6 rounded-2xl cursor-pointer`}
           >
             {loading ? "Saving..." : saved ? "Saved!" : "Save changes"}
           </button>

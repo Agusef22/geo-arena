@@ -95,25 +95,25 @@ export default function ProfileSetup() {
 
   if (checking) {
     return (
-      <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex items-center justify-center">
+      <main className="pop-bg min-h-dvh text-[#fafaf9] flex items-center justify-center">
         <p className="text-neutral-500 animate-pulse">Loading...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2">
-          Set up your profile
+    <main className="pop-bg min-h-dvh text-[#fafaf9] flex flex-col items-center justify-center px-6">
+      <div className="relative z-10 w-full max-w-sm">
+        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
+          <span>✨</span> Set up your profile
         </h1>
-        <p className="text-neutral-500 text-sm mb-8">
+        <p className="text-neutral-400 text-sm mb-8">
           Choose a nickname and an avatar. You can change these later.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Preview */}
-          <div className="flex items-center gap-3 bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+          <div className="flex items-center gap-3 surface-pop p-4">
             <span className="text-4xl">{emoji}</span>
             <span className="font-display text-xl font-bold text-white">
               {nickname || "YourName"}
@@ -137,9 +137,9 @@ export default function ProfileSetup() {
               required
               maxLength={20}
               autoFocus
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-colors"
+              className="input-pop"
             />
-            <p className="text-xs text-neutral-600 mt-1">
+            <p className="text-xs text-neutral-500 mt-1">
               2-20 characters, letters, numbers, _ or -
             </p>
           </div>
@@ -158,7 +158,7 @@ export default function ProfileSetup() {
                   className={`text-2xl p-1.5 rounded-lg transition-all cursor-pointer ${
                     emoji === e
                       ? "bg-emerald-500/20 ring-2 ring-emerald-500 scale-110"
-                      : "hover:bg-zinc-800"
+                      : "hover:bg-white/10"
                   }`}
                 >
                   {e}
@@ -172,7 +172,8 @@ export default function ProfileSetup() {
           <button
             type="submit"
             disabled={loading || !nickname.trim()}
-            className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 disabled:text-zinc-500 active:scale-[0.98] text-[#0a0a0a] font-semibold py-3 px-6 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed"
+            style={{ ["--pop-shadow" as string]: "#047857" }}
+            className="pop-press bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:pointer-events-none text-[#06281c] font-extrabold py-3.5 px-6 rounded-2xl cursor-pointer"
           >
             {loading ? "Creating..." : "Let's go"}
           </button>

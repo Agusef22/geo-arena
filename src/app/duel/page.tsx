@@ -167,7 +167,7 @@ export default function DuelLobby() {
   // Not logged in
   if (!authLoading && (!user || !profile)) {
     return (
-      <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex flex-col items-center justify-center px-6">
+      <main className="pop-bg min-h-dvh text-[#fafaf9] flex flex-col items-center justify-center px-6">
         <div className="text-center max-w-sm">
           <h1 className="font-display text-3xl font-extrabold tracking-tight mb-4">
             Duel Mode
@@ -177,7 +177,8 @@ export default function DuelLobby() {
           </p>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] font-semibold py-3 px-6 rounded-lg transition-all"
+            style={{ ["--pop-shadow" as string]: "#047857" }}
+            className="pop-press inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-[#06281c] font-extrabold py-3.5 px-7 rounded-2xl"
           >
             Sign in
           </Link>
@@ -194,18 +195,18 @@ export default function DuelLobby() {
 
   if (authLoading) {
     return (
-      <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex items-center justify-center">
+      <main className="pop-bg min-h-dvh text-[#fafaf9] flex items-center justify-center">
         <p className="text-neutral-500 animate-pulse">Loading...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <main className="pop-bg min-h-dvh text-[#fafaf9] flex flex-col items-center justify-center px-6">
+      <div className="relative z-10 w-full max-w-sm">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-neutral-500 hover:text-neutral-300 transition-colors text-sm mb-8"
+          className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm mb-8"
         >
           <svg
             width="16"
@@ -223,10 +224,10 @@ export default function DuelLobby() {
           Back
         </Link>
 
-        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2">
-          Duel
+        <h1 className="font-display text-3xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
+          <span className="anim-wiggle inline-block">⚔️</span> Duel
         </h1>
-        <p className="text-neutral-500 text-sm mb-8">
+        <p className="text-neutral-400 text-sm mb-8">
           Challenge a friend. Same locations — win rounds to drain their HP.
         </p>
 
@@ -234,7 +235,7 @@ export default function DuelLobby() {
         {activeCode && (
           <Link
             href={`/duel/${activeCode}`}
-            className="flex items-center justify-between gap-2 w-full bg-cyan-950/40 border border-cyan-900/50 hover:bg-cyan-950/60 rounded-xl px-4 py-3 mb-4 transition-colors"
+            className="flex items-center justify-between gap-2 w-full bg-cyan-500/15 border border-cyan-400/30 hover:bg-cyan-500/25 rounded-2xl px-4 py-3 mb-4 transition-colors"
           >
             <span className="flex items-center gap-2 text-cyan-300 text-sm font-medium">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -247,13 +248,13 @@ export default function DuelLobby() {
         )}
 
         {/* Game options */}
-        <div className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 mb-4 space-y-3">
+        <div className="surface-pop p-4 mb-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-300">Region</span>
+            <span className="text-sm font-medium text-neutral-200">Region</span>
             <select
               value={regionKey}
               onChange={(e) => setRegionKey(e.target.value)}
-              className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer"
+              className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer"
             >
               {REGIONS.map((r) => (
                 <option key={r.key} value={r.key}>
@@ -272,18 +273,19 @@ export default function DuelLobby() {
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 disabled:text-zinc-500 active:scale-[0.98] text-[#0a0a0a] font-semibold py-4 px-6 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed text-lg mb-4"
+          style={{ ["--pop-shadow" as string]: "#047857" }}
+          className="pop-press w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:pointer-events-none text-[#06281c] font-extrabold py-4 px-6 rounded-2xl cursor-pointer text-lg mb-4"
         >
           {loading ? "Creating..." : "Create game"}
         </button>
 
         {/* Divider */}
         <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 h-px bg-neutral-800" />
-          <span className="text-neutral-600 text-xs uppercase tracking-wider">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-neutral-500 text-xs font-semibold uppercase tracking-wider">
             or join
           </span>
-          <div className="flex-1 h-px bg-neutral-800" />
+          <div className="flex-1 h-px bg-white/10" />
         </div>
 
         {/* Join game */}
@@ -294,12 +296,13 @@ export default function DuelLobby() {
             onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
             placeholder="CODE"
             maxLength={4}
-            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-center text-xl font-mono uppercase tracking-[0.3em] placeholder:text-zinc-600 placeholder:tracking-[0.3em] focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-colors"
+            className="input-pop flex-1 text-center text-xl font-mono uppercase tracking-[0.3em] placeholder:tracking-[0.3em]"
           />
           <button
             onClick={handleJoin}
             disabled={loading || joinCode.trim().length !== 4}
-            className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 active:scale-[0.98] text-white font-semibold py-3 px-6 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+            style={{ ["--pop-shadow" as string]: "#3730a3" }}
+            className="pop-press bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold py-3 px-6 rounded-2xl cursor-pointer"
           >
             Join
           </button>
@@ -326,10 +329,10 @@ function ModeToggle({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 text-sm font-medium py-2 rounded-lg border transition-colors cursor-pointer ${
+      className={`flex-1 text-sm font-semibold py-2 rounded-xl border transition-colors cursor-pointer ${
         active
-          ? "bg-emerald-950/50 border-emerald-700/60 text-emerald-300"
-          : "bg-neutral-800/50 border-neutral-700 text-neutral-400 hover:text-neutral-200"
+          ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300"
+          : "bg-white/5 border-white/10 text-neutral-400 hover:text-neutral-200"
       }`}
     >
       {label}

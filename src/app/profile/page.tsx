@@ -51,19 +51,19 @@ export default function ProfilePage() {
 
   if (authLoading || !user || !profile) {
     return (
-      <main className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <main className="pop-bg min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-500" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-[#fafaf9]">
-      <div className="max-w-2xl mx-auto px-6 py-10">
+    <main className="pop-bg min-h-screen text-[#fafaf9]">
+      <div className="relative z-10 max-w-2xl mx-auto px-6 py-10">
         {/* Back */}
         <Link
           href="/"
-          className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500 hover:text-emerald-400 transition-colors"
+          className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
         >
           ← Back
         </Link>
@@ -79,7 +79,7 @@ export default function ProfilePage() {
           </div>
           <Link
             href="/profile/edit"
-            className="ml-auto shrink-0 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-400 hover:text-emerald-400 border border-neutral-800 hover:border-emerald-900/50 rounded-full px-4 py-2 transition-colors"
+            className="ml-auto shrink-0 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 rounded-full px-4 py-2 transition-colors"
           >
             Edit
           </Link>
@@ -93,12 +93,9 @@ export default function ProfilePage() {
         {/* Duel record */}
         {duelStats && (duelStats.wins + duelStats.losses + duelStats.draws > 0) && (
           <div className="mb-10">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-cyan-400">↳</span>
-              <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
-                Duel record
-              </span>
-            </div>
+            <h2 className="font-display text-lg font-extrabold text-white mb-3 flex items-center gap-2">
+              <span>⚔️</span> Duel record
+            </h2>
             <div className="grid grid-cols-4 gap-2">
               <DuelStatBox label="Rating" value={duelStats.rating} color="text-cyan-400" />
               <DuelStatBox label="Wins" value={duelStats.wins} color="text-emerald-400" />
@@ -111,7 +108,7 @@ export default function ProfilePage() {
                 {duels.map((d, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-3 rounded-lg px-4 py-2.5 bg-neutral-900/50"
+                    className="flex items-center gap-3 rounded-xl px-4 py-2.5 bg-white/5"
                   >
                     <span
                       className={`text-[10px] font-bold uppercase w-10 ${
@@ -142,19 +139,16 @@ export default function ProfilePage() {
         )}
 
         {/* Classic history */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-emerald-400">↳</span>
-          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
-            Recent games
-          </span>
-        </div>
+        <h2 className="font-display text-lg font-extrabold text-white mb-4 flex items-center gap-2">
+          <span>🎯</span> Recent games
+        </h2>
 
         {gamesLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-12 bg-neutral-900/50 rounded-lg animate-pulse"
+                className="h-12 bg-white/5 rounded-xl animate-pulse"
               />
             ))}
           </div>
@@ -170,7 +164,7 @@ export default function ProfilePage() {
             {games.map((g) => (
               <div
                 key={g.id}
-                className="flex items-center gap-3 rounded-lg px-4 py-3 bg-neutral-900/50"
+                className="flex items-center gap-3 rounded-xl px-4 py-3 bg-white/5"
               >
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 w-16">
                   {g.mode}
@@ -205,11 +199,11 @@ function DuelStatBox({
   color: string;
 }) {
   return (
-    <div className="bg-neutral-900/50 rounded-lg p-3 text-center">
-      <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1">
+    <div className="bg-white/5 rounded-2xl p-3 text-center">
+      <p className="text-[10px] text-neutral-400 uppercase tracking-wider mb-1">
         {label}
       </p>
-      <p className={`text-lg font-bold tabular-nums ${color}`}>
+      <p className={`text-xl font-extrabold tabular-nums ${color}`}>
         {value.toLocaleString()}
       </p>
     </div>

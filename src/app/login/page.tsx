@@ -108,8 +108,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#0a0a0a] text-[#fafaf9] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <main className="pop-bg min-h-dvh text-[#fafaf9] flex flex-col items-center justify-center px-6">
+      <div className="relative z-10 w-full max-w-sm">
         {/* Back link */}
         <Link
           href="/"
@@ -147,7 +147,7 @@ export default function LoginPage() {
         </p>
 
         {mode === "forgot" && resetSent ? (
-          <div className="bg-emerald-950/50 border border-emerald-900/50 rounded-xl p-6 text-center">
+          <div className="bg-emerald-500/15 border border-emerald-400/30 rounded-2xl p-6 text-center">
             <p className="text-emerald-400 font-medium mb-1">Check your email</p>
             <p className="text-neutral-400 text-sm">
               We sent a reset link to{" "}
@@ -181,7 +181,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               required
               autoFocus
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-colors"
+              className="input-pop"
             />
           </div>
 
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 placeholder={mode === "signup" ? "Min 6 characters" : ""}
                 required
                 minLength={6}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25 transition-colors"
+                className="input-pop"
               />
             </div>
           )}
@@ -225,7 +225,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !email || (mode !== "forgot" && !password)}
-            className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 disabled:text-zinc-500 active:scale-[0.98] text-[#0a0a0a] font-semibold py-3 px-6 rounded-lg transition-all cursor-pointer disabled:cursor-not-allowed"
+            style={{ ["--pop-shadow" as string]: "#047857" }}
+            className="pop-press bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:pointer-events-none text-[#06281c] font-extrabold py-3.5 px-6 rounded-2xl cursor-pointer mt-1"
           >
             {loading
               ? mode === "forgot"
