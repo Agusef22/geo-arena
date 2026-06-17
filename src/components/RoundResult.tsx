@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { formatDistance, getPenaltyTier, STARTING_SCORE } from "@/lib/game";
+import {
+  formatDistance,
+  getScoreTier,
+  MAX_ROUND_SCORE,
+  MAX_GAME_SCORE,
+} from "@/lib/game";
 import { useReverseGeocode } from "@/hooks/useReverseGeocode";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { createPinIcon } from "@/lib/map-utils";
@@ -13,10 +18,7 @@ interface RoundResultProps {
   guessLat: number;
   guessLng: number;
   distanceKm: number;
-  penalty: number;
-  penaltyRatio: number;
-  maxPenalty: number;
-  bonus: number;
+  points: number;
   currentScore: number;
   previousScore: number;
   round: number;
@@ -31,10 +33,7 @@ export default function RoundResult({
   guessLat,
   guessLng,
   distanceKm,
-  penalty,
-  penaltyRatio,
-  maxPenalty,
-  bonus,
+  points,
   currentScore,
   previousScore,
   round,
@@ -43,11 +42,10 @@ export default function RoundResult({
   isFinalRound,
 }: RoundResultProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const animatedPenalty = useAnimatedNumber(penalty, 1000);
+  const animatedPoints = useAnimatedNumber(points, 1000);
   const animatedTotal = useAnimatedNumber(currentScore, 1000, previousScore);
-  const tier = getPenaltyTier(penaltyRatio);
+  const tier = getScoreTier(points);
   const locationName = useReverseGeocode(actualLat, actualLng);
-  const isDead = currentScore <= 0;
   const { profile } = useAuth();
   // The player's avatar for their guess pin; falls back to a target when
   // playing without an account.
@@ -110,7 +108,7 @@ export default function RoundResult({
     });
   }, [actualLat, actualLng, guessLat, guessLng, myEmoji]);
 
-  const scoreBarWidth = `${Math.min(100, (currentScore / STARTING_SCORE) * 100)}%`;
+  const scoreBarWidth = `${Math.min(100, (currentScore / MAX_GAME_SCORE) * 100)}%`;
 
   return (
     <div className="flex flex-col h-full">
@@ -124,9 +122,6 @@ export default function RoundResult({
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm">
               Round {round} of {totalRounds}
-              <span className="ml-2 text-zinc-600">
-                max -{maxPenalty.toLocaleString()}
-              </span>
             </p>
           </div>
 
@@ -143,13 +138,13 @@ export default function RoundResult({
 
             <div className="text-center">
               <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider">
-                Penalty
+                Points
               </p>
               <p
                 className="text-lg sm:text-2xl font-bold tabular-nums"
                 style={{ color: tier.color }}
               >
-                {penalty === 0 ? "0" : `-${animatedPenalty.toLocaleString()}`}
+                +{animatedPoints.toLocaleString()}
               </p>
               <p
                 className="text-[10px] sm:text-xs font-medium"
@@ -159,31 +154,17 @@ export default function RoundResult({
               </p>
             </div>
 
-            {bonus > 0 && (
-              <div className="text-center">
-                <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider">
-                  Bonus
-                </p>
-                <p className="text-lg sm:text-2xl font-bold tabular-nums text-emerald-400">
-                  +{bonus.toLocaleString()}
-                </p>
-                <p className="text-[10px] sm:text-xs font-medium text-emerald-400">
-                  {bonus >= 5000 ? "Perfect!" : "Great!"}
-                </p>
-              </div>
-            )}
-
             <div className="text-center">
               <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider">
-                Score
+                Total
               </p>
-              <p className={`text-sm sm:text-lg font-bold tabular-nums ${isDead ? "text-red-500" : "text-yellow-400"}`}>
-                {isDead ? "0" : animatedTotal.toLocaleString()}
+              <p className="text-sm sm:text-lg font-bold tabular-nums text-yellow-400">
+                {animatedTotal.toLocaleString()}
               </p>
               <div className="w-16 sm:w-24 h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-1000 ease-out ${isDead ? "bg-red-500" : "bg-yellow-400"}`}
-                  style={{ width: isDead ? "0%" : scoreBarWidth }}
+                  className="h-full rounded-full transition-all duration-1000 ease-out bg-yellow-400"
+                  style={{ width: scoreBarWidth }}
                 />
               </div>
             </div>
@@ -209,9 +190,9 @@ export default function RoundResult({
           </div>
         </div>
 
-        {isDead && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse z-10">
-            GAME OVER
+        {points >= MAX_ROUND_SCORE && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-500/90 backdrop-blur-sm text-white font-bold text-lg sm:text-xl px-6 py-2 rounded-full shadow-lg animate-pulse z-10">
+            PERFECT · 5,000
           </div>
         )}
       </div>
@@ -220,19 +201,9 @@ export default function RoundResult({
       <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6">
         <button
           onClick={onNext}
-          className={`${
-            isDead
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-blue-500 hover:bg-blue-600"
-          } active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2`}
+          className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"
         >
-          <span>
-            {isDead
-              ? "Final Results"
-              : isFinalRound
-              ? "Final Results"
-              : "Next Round"}
-          </span>
+          <span>{isFinalRound ? "Final Results" : "Next Round"}</span>
           <kbd className="hidden sm:inline text-xs bg-blue-600/50 px-1.5 py-0.5 rounded">
             Enter
           </kbd>

@@ -5,8 +5,6 @@ export interface RoundData {
   guessLat: number;
   guessLng: number;
   distance: number;
-  penalty: number;
-  penaltyRatio: number;
-  maxPenalty: number;
-  bonus: number;
+  // Points earned this round (0–5,000), additive GeoGuessr-style scoring.
+  points: number;
 }

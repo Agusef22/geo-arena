@@ -11,20 +11,12 @@ import { findGameLocations, type Location } from "@/lib/locations";
 import { getRandomPoolLocations } from "@/lib/supabase/pool";
 import { REGIONS, type Region } from "@/lib/regions";
 import type { RoundData } from "@/lib/types";
-import {
-  haversineDistance,
-  calculatePenalty,
-  calculateBonus,
-  distanceToPenaltyRatio,
-  getRoundMaxPenalty,
-  ROUNDS_PER_GAME,
-  STARTING_SCORE,
-} from "@/lib/game";
+import { haversineDistance, roundScore, ROUNDS_PER_GAME } from "@/lib/game";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { startClassicGame, submitClassicGame } from "@/lib/supabase/game-results";
 
-type GamePhase = "loading" | "playing" | "result" | "summary" | "gameover" | "error";
+type GamePhase = "loading" | "playing" | "result" | "summary" | "error";
 
 // Seconds per round in Timed difficulty.
 const TIMED_ROUND_SECONDS = 30;
@@ -47,7 +39,11 @@ export default function Game({
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [loadProgress, setLoadProgress] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
-  const [displayedScore, setDisplayedScore] = useState(STARTING_SCORE);
+  const [displayedScore, setDisplayedScore] = useState(0);
+  // Diagonal (km) of the played region — scales the round score. Logged-in
+  // games get the exact value from the server; anonymous games fall back to the
+  // region preset's rough estimate.
+  const [diagonalKm, setDiagonalKm] = useState(region.diagonalKm);
   const svServiceRef = useRef<google.maps.StreetViewService | null>(null);
   const savedRef = useRef(false);
   // Id of the server-side game session (logged-in players only). Null for
@@ -60,7 +56,7 @@ export default function Game({
   // rendered. The round timer must not run over a blank/broken view.
   const [viewReady, setViewReady] = useState(false);
   const { playGood, playBad, playNext } = useSoundEffects();
-  const animatedHud = useAnimatedNumber(displayedScore, 800, STARTING_SCORE);
+  const animatedHud = useAnimatedNumber(displayedScore, 800, 0);
 
   useEffect(() => {
     if (window.google) {
@@ -78,6 +74,9 @@ export default function Game({
 
     let gameId: string | null = null;
     let locs: Location[] = [];
+    // Default to the region's rough diagonal; the server overrides it with the
+    // exact value for logged-in sessions.
+    let diagonal = region.diagonalKm;
 
     // Logged-in: open a server-authoritative session — the server stores the
     // locations and scores them on submit, so the result can't be forged.
@@ -85,6 +84,7 @@ export default function Game({
     if (session) {
       gameId = session.gameId;
       locs = session.locations;
+      if (session.diagonalKm > 0) diagonal = session.diagonalKm;
     }
 
     // Anonymous (or session failed): play an unsaved game. Prefer the curated
@@ -107,11 +107,12 @@ export default function Game({
     }
 
     gameIdRef.current = gameId;
+    setDiagonalKm(diagonal);
     setViewReady(false);
     setLocations(locs);
     setCurrentRound(0);
     setRounds([]);
-    setDisplayedScore(STARTING_SCORE);
+    setDisplayedScore(0);
     setPhase("playing");
     setMapOpen(false);
     savedRef.current = false;
@@ -127,9 +128,9 @@ export default function Game({
 
   const currentLocation = locations[currentRound];
 
-  // Current score = starting score - penalties + bonuses
+  // Current score = sum of the points earned each round (additive, 0–25,000).
   const currentScore = useMemo(
-    () => Math.max(0, STARTING_SCORE - rounds.reduce((sum, r) => sum + r.penalty, 0) + rounds.reduce((sum, r) => sum + r.bonus, 0)),
+    () => rounds.reduce((sum, r) => sum + r.points, 0),
     [rounds]
   );
 
@@ -142,15 +143,10 @@ export default function Game({
         guessLat,
         guessLng
       );
-      const penalty = calculatePenalty(distance, currentRound);
-      const penaltyRatio = distanceToPenaltyRatio(distance);
-      const maxPenalty = getRoundMaxPenalty(currentRound);
-      const bonus = calculateBonus(distance);
+      const points = roundScore(distance, diagonalKm);
 
-      // Sound based on how well they did
-      if (bonus > 0) {
-        playGood();
-      } else if (penaltyRatio < 0.2) {
+      // Sound based on how well they did (share of the 5,000 max).
+      if (points >= 4000) {
         playGood();
       } else {
         playBad();
@@ -163,25 +159,20 @@ export default function Game({
           guessLat,
           guessLng,
           distance,
-          penalty,
-          penaltyRatio,
-          maxPenalty,
-          bonus,
+          points,
         },
       ]);
       setPhase("result");
       setMapOpen(false);
     },
-    [currentLocation, currentRound, playGood, playBad]
+    [currentLocation, diagonalKm, playGood, playBad]
   );
 
   const handleNext = useCallback(() => {
     playNext();
 
-    // Calculate score after this round
-    const totalPenalty = rounds.reduce((sum, r) => sum + r.penalty, 0);
-    const totalBonus = rounds.reduce((sum, r) => sum + r.bonus, 0);
-    const scoreAfter = Math.max(0, STARTING_SCORE - totalPenalty + totalBonus);
+    // Running total after this round.
+    const scoreAfter = rounds.reduce((sum, r) => sum + r.points, 0);
 
     // Save by submitting guesses to the server, which scores them against the
     // locations it stored. Fire-and-forget; only saved for logged-in sessions.
@@ -190,16 +181,6 @@ export default function Game({
       const guesses = rounds.map((r) => ({ lat: r.guessLat, lng: r.guessLng }));
       submitClassicGame(gameIdRef.current, guesses);
     };
-
-    // Hard stop: game over if score hit 0
-    if (scoreAfter <= 0) {
-      setPhase("gameover");
-      if (!savedRef.current) {
-        savedRef.current = true;
-        submit();
-      }
-      return;
-    }
 
     if (currentRound + 1 >= ROUNDS_PER_GAME) {
       setPhase("summary");
@@ -249,9 +230,9 @@ export default function Game({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((phase === "result" || phase === "gameover") && (e.key === "Enter" || e.key === " ")) {
+      if (phase === "result" && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
-        if (phase === "result") handleNext();
+        handleNext();
       }
     };
     window.addEventListener("keydown", handler);
@@ -271,7 +252,7 @@ export default function Game({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [timed, phase, currentRound, viewReady]);
 
-  // Tick the timer; when it hits 0 auto-submit a far guess (max penalty) so the
+  // Tick the timer; when it hits 0 auto-submit a far guess (0 points) so the
   // round still resolves, mirroring how the duel handles a timeout.
   useEffect(() => {
     if (roundTimer === null || phase !== "playing") return;
@@ -373,20 +354,6 @@ export default function Game({
     );
   }
 
-  // Game Over screen
-  if (phase === "gameover") {
-    return (
-      <div className="h-screen bg-zinc-950">
-        <GameSummary
-          finalScore={0}
-          rounds={rounds}
-          onPlayAgain={loadLocations}
-          gameOver
-        />
-      </div>
-    );
-  }
-
   if (phase === "summary") {
     return (
       <div className="h-screen bg-zinc-950">
@@ -402,7 +369,7 @@ export default function Game({
   if (phase === "result") {
     const lastRound = rounds[rounds.length - 1];
     const prevRounds = rounds.slice(0, -1);
-    const scoreBeforeThisRound = STARTING_SCORE - prevRounds.reduce((sum, r) => sum + r.penalty, 0) + prevRounds.reduce((sum, r) => sum + r.bonus, 0);
+    const scoreBeforeThisRound = prevRounds.reduce((sum, r) => sum + r.points, 0);
     return (
       <div className="h-screen bg-zinc-900">
         <RoundResult
@@ -411,16 +378,13 @@ export default function Game({
           guessLat={lastRound.guessLat}
           guessLng={lastRound.guessLng}
           distanceKm={lastRound.distance}
-          penalty={lastRound.penalty}
-          penaltyRatio={lastRound.penaltyRatio}
-          maxPenalty={lastRound.maxPenalty}
-          bonus={lastRound.bonus}
+          points={lastRound.points}
           currentScore={currentScore}
           previousScore={scoreBeforeThisRound}
           round={currentRound + 1}
           totalRounds={ROUNDS_PER_GAME}
           onNext={handleNext}
-          isFinalRound={currentRound + 1 >= ROUNDS_PER_GAME || currentScore <= 0}
+          isFinalRound={currentRound + 1 >= ROUNDS_PER_GAME}
         />
       </div>
     );

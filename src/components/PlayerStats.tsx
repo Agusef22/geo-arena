@@ -77,12 +77,6 @@ export default function PlayerStatsCard() {
     );
   }
 
-  const winRate = stats.gamesPlayed > 0
-    ? Math.round(
-        ((stats.gamesPlayed - stats.gameOvers) / stats.gamesPlayed) * 100
-      )
-    : 0;
-
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="flex items-center gap-2 mb-4">
@@ -105,19 +99,14 @@ export default function PlayerStatsCard() {
           color="text-neutral-300"
         />
         <StatBox
-          label="Survival"
-          value={`${winRate}%`}
-          color={winRate >= 50 ? "text-emerald-400" : "text-red-400"}
+          label="Best round"
+          value={stats.bestRound.toLocaleString()}
+          color="text-yellow-400"
         />
         <StatBox
           label="Perfects"
           value={stats.perfectRounds.toString()}
           color="text-emerald-400"
-        />
-        <StatBox
-          label="Deaths"
-          value={stats.gameOvers.toString()}
-          color="text-red-400"
         />
       </div>
     </div>

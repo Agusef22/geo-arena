@@ -11,7 +11,11 @@ import type { Location } from "@/lib/locations";
 export async function startClassicGame(
   count: number,
   countries?: string[] | null
-): Promise<{ gameId: string; locations: Location[] } | null> {
+): Promise<{
+  gameId: string;
+  locations: Location[];
+  diagonalKm: number;
+} | null> {
   const supabase = createClient();
 
   const {
@@ -27,6 +31,7 @@ export async function startClassicGame(
 
   const row = data[0] as {
     game_id: string;
+    diagonal_km: number;
     locations: Array<{
       lat: number;
       lng: number;
@@ -44,7 +49,7 @@ export async function startClassicGame(
   }));
 
   if (locations.length < count) return null;
-  return { gameId: row.game_id, locations };
+  return { gameId: row.game_id, locations, diagonalKm: row.diagonal_km };
 }
 
 /**
@@ -134,10 +139,9 @@ export interface PlayerStats {
   gamesPlayed: number;
   bestScore: number;
   avgScore: number;
-  totalPenalty: number;
-  totalBonus: number;
-  gameOvers: number;
   perfectRounds: number;
+  // Best single-round score across all games (0–5,000).
+  bestRound: number;
 }
 
 export async function getPlayerStats(
@@ -147,7 +151,7 @@ export async function getPlayerStats(
 
   const { data, error } = await supabase
     .from("game_results")
-    .select("score, game_over, total_penalty, total_bonus, rounds")
+    .select("score, rounds")
     .eq("player_id", playerId)
     .eq("mode", "classic");
 
@@ -158,26 +162,21 @@ export async function getPlayerStats(
   const avgScore = Math.round(
     data.reduce((sum, g) => sum + g.score, 0) / gamesPlayed
   );
-  const totalPenalty = data.reduce((sum, g) => sum + g.total_penalty, 0);
-  const totalBonus = data.reduce((sum, g) => sum + g.total_bonus, 0);
-  const gameOvers = data.filter((g) => g.game_over).length;
 
-  // Count perfect rounds (penaltyRatio === 0) across all games
+  // Perfect rounds (5,000 pts) and the best single round, from the per-round
+  // points the server stored.
   let perfectRounds = 0;
+  let bestRound = 0;
   for (const game of data) {
-    const rounds = game.rounds as Array<{ penaltyRatio: number }>;
+    const rounds = game.rounds as Array<{ points?: number }>;
     if (Array.isArray(rounds)) {
-      perfectRounds += rounds.filter((r) => r.penaltyRatio === 0).length;
+      for (const r of rounds) {
+        const pts = r.points ?? 0;
+        if (pts >= 5000) perfectRounds += 1;
+        if (pts > bestRound) bestRound = pts;
+      }
     }
   }
 
-  return {
-    gamesPlayed,
-    bestScore,
-    avgScore,
-    totalPenalty,
-    totalBonus,
-    gameOvers,
-    perfectRounds,
-  };
+  return { gamesPlayed, bestScore, avgScore, perfectRounds, bestRound };
 }
