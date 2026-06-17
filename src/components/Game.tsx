@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import StreetView from "./StreetView";
 import GuessMap from "./GuessMap";
 import RoundResult from "./RoundResult";
@@ -37,9 +38,12 @@ export default function Game({
   timed?: boolean;
   noMove?: boolean;
 }) {
+  const router = useRouter();
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [phase, setPhase] = useState<GamePhase>("loading");
+  // Confirmation before abandoning an in-progress game.
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [loadProgress, setLoadProgress] = useState(0);
   const [mapOpen, setMapOpen] = useState(false);
@@ -211,6 +215,37 @@ export default function Game({
       setDisplayedScore(scoreAfter);
     }
   }, [currentRound, rounds, playNext]);
+
+  // Abandoning a logged-in game forfeits it: we submit max-distance guesses
+  // (the antipode of every stored location) so the server scores it as a clean
+  // game over. Submitting the *real* partial guesses instead would let a player
+  // bank a high score off a single good round, so we never do that on leave.
+  const confirmLeave = useCallback(() => {
+    if (gameIdRef.current && !savedRef.current && locations.length > 0) {
+      savedRef.current = true;
+      const forfeitGuesses = locations.map((l) => ({
+        lat: -l.lat,
+        lng: ((l.lng + 540) % 360) - 180,
+      }));
+      // Fire-and-forget: client-side nav keeps the JS context alive to finish.
+      submitClassicGame(gameIdRef.current, forfeitGuesses);
+    }
+    router.push("/");
+  }, [locations, router]);
+
+  // Warn on tab close / refresh / browser back while a round is in progress.
+  // The native dialog can't be customized, and an async forfeit can't reliably
+  // complete on unload — but nothing is banked either way, so this is just a
+  // best-effort nudge; the in-app Back button is the path that records the loss.
+  useEffect(() => {
+    if (phase !== "playing" && phase !== "result") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [phase]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -411,10 +446,10 @@ export default function Game({
       {/* HUD top bar */}
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center justify-between pointer-events-none">
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
-          {/* Back to menu */}
-          <Link
-            href="/"
-            className="bg-black/70 backdrop-blur-sm rounded-xl px-2.5 py-2.5 sm:px-3 sm:py-3 text-white hover:bg-black/90 transition-colors"
+          {/* Back to menu — confirms first, since leaving forfeits the game */}
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            className="bg-black/70 backdrop-blur-sm rounded-xl px-2.5 py-2.5 sm:px-3 sm:py-3 text-white hover:bg-black/90 transition-colors cursor-pointer"
             title="Back to menu"
           >
             <svg
@@ -430,7 +465,7 @@ export default function Game({
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
-          </Link>
+          </button>
 
           {/* Round info */}
           <div className="bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2 sm:px-5 sm:py-3 text-white flex items-center gap-2 sm:gap-4">
@@ -553,6 +588,49 @@ export default function Game({
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
+      )}
+
+      {/* Leave confirmation — abandoning forfeits the game as a loss */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-white mb-2">Leave the game?</h2>
+            <p className="text-zinc-400 text-sm mb-6">
+              If you leave now, this game counts as a loss and your progress is
+              gone. Are you sure?
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 bg-zinc-700 hover:bg-zinc-600 active:scale-95 text-white font-bold py-3 px-4 rounded-full transition-all cursor-pointer"
+              >
+                Keep playing
+              </button>
+              <button
+                onClick={confirmLeave}
+                className="flex-1 bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold py-3 px-4 rounded-full transition-all cursor-pointer"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
