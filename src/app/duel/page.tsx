@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { generateDuelCode, DUEL_STARTING_SCORE } from "@/lib/duel";
+import { generateDuelCode, DUEL_STARTING_HP } from "@/lib/duel";
 import { REGIONS, resolveRegion } from "@/lib/regions";
 
 export default function DuelLobby() {
@@ -84,7 +84,7 @@ export default function DuelLobby() {
     const { error: playerError } = await supabase.from("duel_players").insert({
       duel_id: duel.id,
       player_id: user.id,
-      score: DUEL_STARTING_SCORE,
+      score: DUEL_STARTING_HP,
       is_host: true,
     });
 
@@ -151,7 +151,7 @@ export default function DuelLobby() {
     const { error: joinError } = await supabase.from("duel_players").insert({
       duel_id: duel.id,
       player_id: user.id,
-      score: DUEL_STARTING_SCORE,
+      score: DUEL_STARTING_HP,
       is_host: false,
     });
 

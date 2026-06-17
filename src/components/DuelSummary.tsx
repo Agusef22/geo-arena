@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistance } from "@/lib/game";
-import { DUEL_STARTING_SCORE } from "@/lib/duel";
+import { DUEL_STARTING_HP } from "@/lib/duel";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 interface DuelRoundData {
@@ -12,7 +12,9 @@ interface DuelRoundData {
   opponentGuess: { lat: number; lng: number };
   myDistance: number;
   opponentDistance: number;
-  penalty: number;
+  myPoints: number;
+  opponentPoints: number;
+  damage: number;
   iWon: boolean;
   isDraw: boolean;
 }
@@ -146,7 +148,7 @@ export default function DuelSummary({
             <div
               className={`h-full rounded-full transition-all duration-1000 ${iWin ? "bg-emerald-400" : isDraw ? "bg-yellow-400" : "bg-red-400"}`}
               style={{
-                width: `${Math.min(100, (myScore / DUEL_STARTING_SCORE) * 100)}%`,
+                width: `${Math.min(100, (myScore / DUEL_STARTING_HP) * 100)}%`,
               }}
             />
           </div>
@@ -165,7 +167,7 @@ export default function DuelSummary({
             <div
               className={`h-full rounded-full transition-all duration-1000 ${iLose ? "bg-emerald-400" : isDraw ? "bg-yellow-400" : "bg-red-400"}`}
               style={{
-                width: `${Math.min(100, (opponentScore / DUEL_STARTING_SCORE) * 100)}%`,
+                width: `${Math.min(100, (opponentScore / DUEL_STARTING_HP) * 100)}%`,
               }}
             />
           </div>
@@ -222,7 +224,7 @@ export default function DuelSummary({
                       : "bg-red-900/40 text-red-400"
                   }`}
                 >
-                  {r.isDraw ? "DRAW" : r.iWon ? "WIN" : `-${r.penalty.toLocaleString()}`}
+                  {r.isDraw ? "DRAW" : r.iWon ? "WIN" : `-${r.damage.toLocaleString()}`}
                 </span>
               </div>
 

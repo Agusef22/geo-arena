@@ -5,10 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useFriends } from "@/context/FriendsProvider";
-import {
-  DUEL_STARTING_SCORE,
-  DUEL_ROUNDS,
-} from "@/lib/duel";
+import { DUEL_STARTING_HP, DUEL_ROUNDS } from "@/lib/duel";
+import { roundScore, WORLD_DIAGONAL_KM } from "@/lib/game";
 import { findGameLocations, type Location } from "@/lib/locations";
 import { getRandomPoolLocations } from "@/lib/supabase/pool";
 import { inviteToExistingDuel } from "@/lib/supabase/friends";
@@ -45,7 +43,10 @@ interface DuelRoundData {
   opponentGuess: { lat: number; lng: number };
   myDistance: number;
   opponentDistance: number;
-  penalty: number;
+  // Round scores (0–5,000) and the HP damage dealt to the round's loser.
+  myPoints: number;
+  opponentPoints: number;
+  damage: number;
   iWon: boolean;
   isDraw: boolean;
 }
@@ -90,7 +91,8 @@ interface DuelGuessRow {
 function buildRoundsHistory(
   guesses: DuelGuessRow[],
   userId: string,
-  locations: Location[]
+  locations: Location[],
+  diagonalKm: number
 ): DuelRoundData[] {
   const byRound = new Map<number, DuelGuessRow[]>();
   for (const g of guesses) {
@@ -109,11 +111,10 @@ function buildRoundsHistory(
     if (!myGuess || !oppGuess) continue;
     if (!locations[round]) continue;
 
-    const totalPenalty = myGuess.penalty + oppGuess.penalty;
-    const isDraw =
-      totalPenalty === 0 &&
-      Math.abs(myGuess.distance_km - oppGuess.distance_km) < 5;
-    const iWon = !isDraw && myGuess.penalty === 0 && oppGuess.penalty > 0;
+    const myPoints = roundScore(myGuess.distance_km, diagonalKm);
+    const opponentPoints = roundScore(oppGuess.distance_km, diagonalKm);
+    const isDraw = myPoints === opponentPoints;
+    const iWon = myPoints > opponentPoints;
 
     rounds.push({
       location: locations[round],
@@ -121,7 +122,9 @@ function buildRoundsHistory(
       opponentGuess: { lat: oppGuess.guess_lat, lng: oppGuess.guess_lng },
       myDistance: myGuess.distance_km,
       opponentDistance: oppGuess.distance_km,
-      penalty: Math.max(myGuess.penalty, oppGuess.penalty),
+      myPoints,
+      opponentPoints,
+      damage: Math.max(myGuess.penalty, oppGuess.penalty),
       iWon,
       isDraw,
     });
@@ -157,8 +160,15 @@ export default function DuelGame({ code }: { code: string }) {
   const [currentRound, setCurrentRound] = useState(0);
   const [locations, setLocations] = useState<Location[]>([]);
   const [rounds, setRounds] = useState<DuelRoundData[]>([]);
-  const [myScore, setMyScore] = useState(DUEL_STARTING_SCORE);
-  const [opponentScore, setOpponentScore] = useState(DUEL_STARTING_SCORE);
+  const [myScore, setMyScore] = useState(DUEL_STARTING_HP);
+  const [opponentScore, setOpponentScore] = useState(DUEL_STARTING_HP);
+  // Region diagonal (km) the server locked in for this duel — scales the round
+  // score. Set once from the duel row; read via a ref in stable callbacks.
+  const [diagonalKm, setDiagonalKm] = useState(WORLD_DIAGONAL_KM);
+  const diagonalRef = useRef(diagonalKm);
+  useEffect(() => {
+    diagonalRef.current = diagonalKm;
+  }, [diagonalKm]);
   const [countdown, setCountdown] = useState(3);
   const [mapOpen, setMapOpen] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -249,10 +259,15 @@ export default function DuelGame({ code }: { code: string }) {
       const newMyScore = myPlayerData?.score ?? myScoreRef.current;
       const newOpponentScore = oppPlayerData?.score ?? opponentScoreRef.current;
 
-      // Determine round result from the penalty values the trigger set
-      const totalPenalty = myGuessData.penalty + opponentGuessData.penalty;
-      const isDraw = totalPenalty === 0 && Math.abs(myGuessData.distance_km - opponentGuessData.distance_km) < 5;
-      const iWon = !isDraw && myGuessData.penalty === 0 && opponentGuessData.penalty > 0;
+      // Round scores from the server-locked diagonal; the winner is whoever
+      // scored higher (the trigger applied the damage to the loser's HP).
+      const myPoints = roundScore(myGuessData.distance_km, diagonalRef.current);
+      const opponentPoints = roundScore(
+        opponentGuessData.distance_km,
+        diagonalRef.current
+      );
+      const isDraw = myPoints === opponentPoints;
+      const iWon = myPoints > opponentPoints;
 
       const roundData: DuelRoundData = {
         location: locations[round],
@@ -263,7 +278,9 @@ export default function DuelGame({ code }: { code: string }) {
         },
         myDistance: myGuessData.distance_km,
         opponentDistance: opponentGuessData.distance_km,
-        penalty: Math.max(myGuessData.penalty, opponentGuessData.penalty),
+        myPoints,
+        opponentPoints,
+        damage: Math.max(myGuessData.penalty, opponentGuessData.penalty),
         iWon,
         isDraw,
       };
@@ -305,7 +322,7 @@ export default function DuelGame({ code }: { code: string }) {
     async (dId: string) => {
       const { data: duel } = await supabase
         .from("duels")
-        .select("locations, status")
+        .select("locations, status, diagonal_km")
         .eq("id", dId)
         .single();
 
@@ -318,6 +335,9 @@ export default function DuelGame({ code }: { code: string }) {
           duel.locations as Array<{ lat: number; lng: number }>
         );
         setLocations(locs);
+        if (typeof duel.diagonal_km === "number" && duel.diagonal_km > 0) {
+          setDiagonalKm(duel.diagonal_km);
+        }
         return true;
       }
       return false;
@@ -334,7 +354,7 @@ export default function DuelGame({ code }: { code: string }) {
     async function init() {
       const { data: duel } = await supabase
         .from("duels")
-        .select("id, status, locations, current_round, timed, no_move, countries")
+        .select("id, status, locations, current_round, timed, no_move, countries, diagonal_km")
         .eq("code", code)
         .single();
 
@@ -350,6 +370,11 @@ export default function DuelGame({ code }: { code: string }) {
         noMove: !!duel.no_move,
         countries: (duel.countries as string[] | null) ?? null,
       });
+      const diag =
+        typeof duel.diagonal_km === "number" && duel.diagonal_km > 0
+          ? duel.diagonal_km
+          : WORLD_DIAGONAL_KM;
+      setDiagonalKm(diag);
 
       // Fetch players and all guesses in parallel
       const [playersResult, guessesResult] = await Promise.all([
@@ -395,7 +420,7 @@ export default function DuelGame({ code }: { code: string }) {
       const guesses = (guessesResult.data ?? []) as DuelGuessRow[];
 
       // Rebuild completed rounds history so refreshing doesn't lose it
-      const history = buildRoundsHistory(guesses, user!.id, locs);
+      const history = buildRoundsHistory(guesses, user!.id, locs, diag);
       setRounds(history);
       // Mark already-resolved rounds so checkAndResolveGuesses doesn't re-add them
       roundResolvedRef.current = history.length - 1;
@@ -1206,7 +1231,9 @@ export default function DuelGame({ code }: { code: string }) {
           opponentGuess={lastRound.opponentGuess}
           myDistance={lastRound.myDistance}
           opponentDistance={lastRound.opponentDistance}
-          penalty={lastRound.penalty}
+          myPoints={lastRound.myPoints}
+          opponentPoints={lastRound.opponentPoints}
+          damage={lastRound.damage}
           iWon={lastRound.iWon}
           isDraw={lastRound.isDraw}
           myScore={myScore}

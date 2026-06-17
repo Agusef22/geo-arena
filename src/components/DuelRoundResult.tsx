@@ -14,7 +14,9 @@ interface DuelRoundResultProps {
   opponentGuess: { lat: number; lng: number };
   myDistance: number;
   opponentDistance: number;
-  penalty: number;
+  myPoints: number;
+  opponentPoints: number;
+  damage: number;
   iWon: boolean;
   isDraw: boolean;
   myScore: number;
@@ -36,7 +38,9 @@ export default function DuelRoundResult({
   opponentGuess,
   myDistance,
   opponentDistance,
-  penalty,
+  myPoints,
+  opponentPoints,
+  damage,
   iWon,
   isDraw,
   myScore,
@@ -145,6 +149,13 @@ export default function DuelRoundResult({
     ? "text-emerald-400"
     : "text-red-400";
 
+  // The damage = round-score gap × the winner's multiplier; recover the applied
+  // multiplier to show the momentum bonus (rounded to the nearest 0.5).
+  const scoreGap = Math.abs(myPoints - opponentPoints);
+  const appliedMult = scoreGap > 0 ? damage / scoreGap : 1;
+  const multLabel =
+    appliedMult >= 1.25 ? `×${(Math.round(appliedMult * 2) / 2).toFixed(1)}` : null;
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -164,6 +175,23 @@ export default function DuelRoundResult({
             </p>
           </div>
 
+          {/* Damage dealt this round, with the momentum multiplier */}
+          {!isDraw && (
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-xs text-zinc-400">
+                {iWon ? "You dealt" : "You took"}
+              </span>
+              <span className="font-bold text-red-400 tabular-nums">
+                {damage.toLocaleString()} dmg
+              </span>
+              {multLabel && (
+                <span className="text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-800/40 rounded px-1.5 py-0.5">
+                  ⚔️ {multLabel}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Players comparison */}
           <div className="flex items-center justify-between gap-2 mt-3">
             {/* Me */}
@@ -178,10 +206,14 @@ export default function DuelRoundResult({
                 {formatDistance(myDistance)}
               </p>
               <p className="text-lg font-bold text-cyan-400 tabular-nums">
-                {myScore.toLocaleString()}
+                {myPoints.toLocaleString()}
+                <span className="text-[10px] text-zinc-500 ml-1">pts</span>
+              </p>
+              <p className="text-[11px] text-zinc-500 tabular-nums">
+                {myScore.toLocaleString()} HP
                 {!iWon && !isDraw && (
-                  <span className="text-red-400 text-sm ml-1">
-                    -{penalty.toLocaleString()}
+                  <span className="text-red-400 ml-1">
+                    -{damage.toLocaleString()}
                   </span>
                 )}
               </p>
@@ -201,10 +233,14 @@ export default function DuelRoundResult({
                 {formatDistance(opponentDistance)}
               </p>
               <p className="text-lg font-bold text-red-400 tabular-nums">
-                {opponentScore.toLocaleString()}
+                {opponentPoints.toLocaleString()}
+                <span className="text-[10px] text-zinc-500 ml-1">pts</span>
+              </p>
+              <p className="text-[11px] text-zinc-500 tabular-nums">
+                {opponentScore.toLocaleString()} HP
                 {iWon && (
-                  <span className="text-red-400 text-sm ml-1">
-                    -{penalty.toLocaleString()}
+                  <span className="text-red-400 ml-1">
+                    -{damage.toLocaleString()}
                   </span>
                 )}
               </p>
