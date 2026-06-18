@@ -953,7 +953,7 @@ export default function DuelGame({ code }: { code: string }) {
   // While I'm in the duel room, mark myself present every few seconds. This
   // keeps the duel alive (the cleanup job deletes duels where everyone's
   // heartbeat is stale) and lets the server end an in-progress duel in my
-  // favor (~15s) if the opponent leaves. claim_abandoned_duel self-guards to
+  // favor (~60s) if the opponent leaves. claim_abandoned_duel self-guards to
   // 'playing' duels, so heartbeating while waiting/loading is harmless.
   useEffect(() => {
     const IN_ROOM: Phase[] = [
@@ -969,8 +969,13 @@ export default function DuelGame({ code }: { code: string }) {
 
     let cancelled = false;
     const beat = async () => {
+      // Always refresh my own presence so I'm not the one claimed/cleaned.
       await supabase.rpc("duel_heartbeat", { p_duel_id: duelId });
       if (cancelled) return;
+      // Only claim an abandonment win during the ACTIVE guessing phases. On the
+      // result / waiting-next screens a slow opponent should just trigger the
+      // auto-advance, not lose the whole duel.
+      if (phase !== "playing" && phase !== "waiting-opponent") return;
       const { data: won } = await supabase.rpc("claim_abandoned_duel", {
         p_duel_id: duelId,
       });
