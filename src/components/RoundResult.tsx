@@ -198,7 +198,7 @@ export default function RoundResult({
       </div>
 
       {/* Next button — fixed on mobile so it's always visible */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6">
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6 pb-[env(safe-area-inset-bottom)]">
         <button
           onClick={onNext}
           className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-2.5 sm:py-3 px-8 sm:px-10 rounded-full shadow-lg transition-all text-base sm:text-lg cursor-pointer flex items-center gap-2"

@@ -1010,7 +1010,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "error") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         <p className="text-red-400 text-lg mb-4">{error}</p>
         <Link
           href="/duel"
@@ -1024,7 +1024,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "connecting") {
     return (
-      <div className="flex items-center justify-center h-screen bg-zinc-950">
+      <div className="flex items-center justify-center h-dvh bg-zinc-950">
         <p className="text-neutral-500 animate-pulse">Connecting...</p>
       </div>
     );
@@ -1032,7 +1032,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "waiting") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500 mb-6">
           Waiting for opponent
         </p>
@@ -1121,7 +1121,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         {opponent && me && (
           <div className="flex items-center gap-3 text-neutral-300 mb-8">
             <span className="text-2xl">{me.emoji}</span>
@@ -1164,7 +1164,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "countdown") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         {opponent && me && (
           <div className="flex items-center gap-3 text-neutral-300 mb-12">
             <span className="text-2xl">{me.emoji}</span>
@@ -1185,7 +1185,7 @@ export default function DuelGame({ code }: { code: string }) {
     const oppName = opponent?.nickname ?? "your opponent";
     const suspect = waitSeconds >= SUSPECT_AFTER_SECONDS;
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         <div className="w-8 h-8 border-2 border-zinc-700 border-t-cyan-500 rounded-full animate-spin mb-4" />
         <p className="text-neutral-400 text-lg">Waiting for {oppName}...</p>
         <p className="text-neutral-600 text-sm mt-2">
@@ -1224,7 +1224,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "waiting-next") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
         <div className="w-8 h-8 border-2 border-zinc-700 border-t-cyan-500 rounded-full animate-spin mb-4" />
         <p className="text-neutral-400 text-lg">
           Waiting for {opponent?.nickname ?? "opponent"}...
@@ -1244,7 +1244,7 @@ export default function DuelGame({ code }: { code: string }) {
   if (phase === "result") {
     const lastRound = rounds[rounds.length - 1];
     return (
-      <div className="h-screen bg-zinc-900">
+      <div className="h-dvh bg-zinc-900">
         <DuelRoundResult
           round={currentRound + 1}
           totalRounds={DUEL_ROUNDS}
@@ -1278,7 +1278,7 @@ export default function DuelGame({ code }: { code: string }) {
 
   if (phase === "summary") {
     return (
-      <div className="h-screen bg-zinc-950">
+      <div className="h-dvh bg-zinc-950">
         <DuelSummary
           rounds={rounds}
           myScore={myScore}
@@ -1310,7 +1310,7 @@ export default function DuelGame({ code }: { code: string }) {
       </div>
 
       {/* HUD */}
-      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center justify-between pointer-events-none pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           <Link
             href="/duel"

@@ -337,7 +337,7 @@ export default function Game({
   // Loading screen
   if (phase === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 bg-grid px-4">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 bg-grid px-4">
         <div className="text-center">
           <div className="relative mx-auto mb-6 w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-zinc-700 animate-pulse" />
@@ -382,7 +382,7 @@ export default function Game({
   // Error screen
   if (phase === "error") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 bg-grid px-4">
+      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 bg-grid px-4">
         <div className="text-center">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-6 mx-auto">
             <circle cx="12" cy="12" r="10" />
@@ -418,7 +418,7 @@ export default function Game({
 
   if (phase === "summary") {
     return (
-      <div className="h-screen bg-zinc-950">
+      <div className="h-dvh bg-zinc-950">
         <GameSummary
           finalScore={currentScore}
           rounds={rounds}
@@ -433,7 +433,7 @@ export default function Game({
     const prevRounds = rounds.slice(0, -1);
     const scoreBeforeThisRound = prevRounds.reduce((sum, r) => sum + r.points, 0);
     return (
-      <div className="h-screen bg-zinc-900">
+      <div className="h-dvh bg-zinc-900">
         <RoundResult
           actualLat={lastRound.location.lat}
           actualLng={lastRound.location.lng}
@@ -470,7 +470,7 @@ export default function Game({
       </div>
 
       {/* HUD top bar */}
-      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center justify-between pointer-events-none pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
           {/* Back to menu — confirms first, since leaving forfeits the game */}
           <button

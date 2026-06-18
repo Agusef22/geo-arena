@@ -275,7 +275,7 @@ export default function DuelRoundResult({
       </div>
 
       {/* Next button */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6">
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 sm:absolute sm:bottom-6 pb-[env(safe-area-inset-bottom)]">
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={onNext}

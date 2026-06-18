@@ -61,7 +61,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast, dismissToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)] pointer-events-none">
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)] pointer-events-none pt-[env(safe-area-inset-top)]">
         {toasts.map((t) => (
           <ToastCard key={t.id} toast={t} onDismiss={() => dismissToast(t.id)} />
         ))}

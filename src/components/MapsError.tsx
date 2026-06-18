@@ -6,7 +6,7 @@ import Link from "next/link";
 // game must not start without the map, so we surface this instead.
 export default function MapsError() {
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center">
+    <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
       <svg
         width="48"
         height="48"

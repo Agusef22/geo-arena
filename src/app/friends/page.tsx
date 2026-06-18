@@ -77,7 +77,7 @@ export default function FriendsPage() {
 
   if (authLoading || !user) {
     return (
-      <main className="pop-bg min-h-screen flex items-center justify-center">
+      <main className="pop-bg min-h-dvh flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-500" />
       </main>
     );
@@ -86,7 +86,7 @@ export default function FriendsPage() {
   const trimmed = query.trim();
 
   return (
-    <main className="pop-bg min-h-screen text-[#fafaf9]">
+    <main className="pop-bg min-h-dvh text-[#fafaf9]">
       <div className="relative z-10 max-w-2xl mx-auto px-6 py-10">
         <Link
           href="/"

@@ -28,7 +28,7 @@ export default function DuelGamePage({
           strategy="afterInteractive"
           onLoad={() => setMapsLoaded(true)}
         />
-        <div className="flex items-center justify-center h-screen bg-zinc-950">
+        <div className="flex items-center justify-center h-dvh bg-zinc-950">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4" />
             <p className="text-zinc-400 text-lg">Loading maps...</p>
