@@ -229,8 +229,17 @@ export default function DuelGame({ code }: { code: string }) {
   // The DB trigger (resolve_duel_guess) calculates distance_km, penalty, and
   // updates duel_players.score automatically. We just read the results.
   const checkAndResolveGuesses = useCallback(
-    async (round: number) => {
-      if (!duelId || !user || roundResolvedRef.current >= round) return;
+    async () => {
+      if (!duelId || !user) return;
+
+      // Resolve the LOWEST round that hasn't been resolved yet, independent of
+      // `currentRound`. If we keyed off currentRound, a client whose currentRound
+      // advanced (DB trigger bumps duels.current_round once both guessed, or a
+      // refresh re-reads it) would query the wrong round and hang on the spinner
+      // forever while the opponent already sees the result. Resolving
+      // roundResolvedRef.current + 1 makes both clients converge deterministically.
+      const round = roundResolvedRef.current + 1;
+      if (round >= DUEL_ROUNDS) return;
 
       const { data: guesses } = await supabase
         .from("duel_guesses")
@@ -243,9 +252,8 @@ export default function DuelGame({ code }: { code: string }) {
       const myGuessData = guesses.find((g) => g.player_id === user.id);
       const opponentGuessData = guesses.find((g) => g.player_id !== user.id);
       if (!myGuessData || !opponentGuessData) return;
-
-      // Mark as resolved so we don't run twice
-      roundResolvedRef.current = round;
+      // Guard: don't resolve before this client has the round's location.
+      if (!locations[round]) return;
 
       // Read scores from DB (trigger already updated them)
       const { data: playersData } = await supabase
@@ -285,8 +293,17 @@ export default function DuelGame({ code }: { code: string }) {
         isDraw,
       };
 
+      // Mark resolved only now that everything succeeded — never on an early
+      // return — so a transient failure can't poison the ref and permanently
+      // block this round from ever resolving.
+      roundResolvedRef.current = round;
+
       setMyScore(newMyScore);
       setOpponentScore(newOpponentScore);
+      // Keep currentRound aligned with the round we actually resolved, so the
+      // result screen labels the right round and the next advance is correct
+      // even if currentRound had drifted ahead.
+      setCurrentRound(round);
       // Append round only if not already present (prevents duplicates on refresh)
       setRounds((prev) => (prev.length > round ? prev : [...prev, roundData]));
       // Reset ready state for next round
@@ -631,7 +648,7 @@ export default function DuelGame({ code }: { code: string }) {
       setMapOpen(false);
 
       // Immediately check if opponent already guessed (trigger resolves the round)
-      await checkAndResolveGuesses(currentRound);
+      await checkAndResolveGuesses();
     },
     [duelId, user, currentRound, supabase, checkAndResolveGuesses]
   );
@@ -689,20 +706,20 @@ export default function DuelGame({ code }: { code: string }) {
         },
         () => {
           checkGuessState();
-          checkAndResolveGuesses(currentRound);
+          checkAndResolveGuesses();
         }
       )
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           await checkGuessState();
-          await checkAndResolveGuesses(currentRound);
+          await checkAndResolveGuesses();
         }
       });
 
     // Poll fallback every 2s
     const poll = setInterval(() => {
       checkGuessState();
-      checkAndResolveGuesses(currentRound);
+      checkAndResolveGuesses();
     }, 2000);
 
     return () => {
@@ -743,7 +760,7 @@ export default function DuelGame({ code }: { code: string }) {
             }
             setPhase("waiting-opponent");
             setGuessTimer(null);
-            checkAndResolveGuesses(currentRound);
+            checkAndResolveGuesses();
           });
       }
       return;
@@ -936,7 +953,7 @@ export default function DuelGame({ code }: { code: string }) {
   // While I'm in the duel room, mark myself present every few seconds. This
   // keeps the duel alive (the cleanup job deletes duels where everyone's
   // heartbeat is stale) and lets the server end an in-progress duel in my
-  // favor (~15s) if the opponent leaves. claim_abandoned_duel self-guards to
+  // favor (~60s) if the opponent leaves. claim_abandoned_duel self-guards to
   // 'playing' duels, so heartbeating while waiting/loading is harmless.
   useEffect(() => {
     const IN_ROOM: Phase[] = [
@@ -952,8 +969,13 @@ export default function DuelGame({ code }: { code: string }) {
 
     let cancelled = false;
     const beat = async () => {
+      // Always refresh my own presence so I'm not the one claimed/cleaned.
       await supabase.rpc("duel_heartbeat", { p_duel_id: duelId });
       if (cancelled) return;
+      // Only claim an abandonment win during the ACTIVE guessing phases. On the
+      // result / waiting-next screens a slow opponent should just trigger the
+      // auto-advance, not lose the whole duel.
+      if (phase !== "playing" && phase !== "waiting-opponent") return;
       const { data: won } = await supabase.rpc("claim_abandoned_duel", {
         p_duel_id: duelId,
       });

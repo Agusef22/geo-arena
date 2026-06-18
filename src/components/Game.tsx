@@ -14,7 +14,12 @@ import type { RoundData } from "@/lib/types";
 import { haversineDistance, roundScore, ROUNDS_PER_GAME } from "@/lib/game";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
-import { startClassicGame, submitClassicGame } from "@/lib/supabase/game-results";
+import {
+  startClassicGame,
+  submitClassicGame,
+  resumeClassicGame,
+  recordClassicGuess,
+} from "@/lib/supabase/game-results";
 
 type GamePhase = "loading" | "playing" | "result" | "summary" | "error";
 
@@ -118,13 +123,66 @@ export default function Game({
     savedRef.current = false;
   }, [region]);
 
+  // On mount, try to resume an in-progress server game (so a refresh doesn't
+  // lose progress); only start a fresh game when there's nothing to resume.
+  const resumeOrStart = useCallback(async () => {
+    setPhase("loading");
+    const resumed = await resumeClassicGame();
+    if (resumed && resumed.locations.length >= ROUNDS_PER_GAME) {
+      const diagonal =
+        resumed.diagonalKm > 0 ? resumed.diagonalKm : region.diagonalKm;
+      // Rebuild the played rounds from the persisted guesses (display only —
+      // the server re-scores on submit against its stored locations).
+      const rebuilt: RoundData[] = resumed.guesses
+        .slice(0, resumed.locations.length)
+        .map((g, i) => {
+          const loc = resumed.locations[i];
+          const distance = haversineDistance(loc.lat, loc.lng, g.lat, g.lng);
+          return {
+            location: loc,
+            guessLat: g.lat,
+            guessLng: g.lng,
+            distance,
+            points: roundScore(distance, diagonal),
+          };
+        });
+
+      gameIdRef.current = resumed.gameId;
+      savedRef.current = false;
+      setDiagonalKm(diagonal);
+      setLocations(resumed.locations);
+      setRounds(rebuilt);
+      setDisplayedScore(rebuilt.reduce((sum, r) => sum + r.points, 0));
+      setViewReady(false);
+      setMapOpen(false);
+
+      if (rebuilt.length >= ROUNDS_PER_GAME) {
+        // All rounds were guessed but the game was never submitted — finalize.
+        setCurrentRound(ROUNDS_PER_GAME - 1);
+        setPhase("summary");
+        if (!savedRef.current) {
+          savedRef.current = true;
+          submitClassicGame(
+            resumed.gameId,
+            rebuilt.map((r) => ({ lat: r.guessLat, lng: r.guessLng }))
+          );
+        }
+      } else {
+        setCurrentRound(rebuilt.length);
+        setPhase("playing");
+      }
+      return;
+    }
+    await loadLocations();
+  }, [region, loadLocations]);
+
   useEffect(() => {
-    // Intentional: kick off the async location search on mount. loadLocations
-    // sets "loading" state synchronously, which the rule flags, but firing a
-    // load once on mount is exactly what this effect is for.
+    // Intentional: kick off the async resume/load on mount. It sets "loading"
+    // state synchronously, which the rule flags, but firing once on mount is
+    // exactly what this effect is for.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadLocations();
-  }, [loadLocations]);
+    resumeOrStart();
+  }, [resumeOrStart]);
 
   const currentLocation = locations[currentRound];
 
@@ -162,10 +220,14 @@ export default function Game({
           points,
         },
       ]);
+      // Persist the guess so a refresh can resume this game (logged-in only).
+      if (gameIdRef.current) {
+        recordClassicGuess(gameIdRef.current, currentRound, guessLat, guessLng);
+      }
       setPhase("result");
       setMapOpen(false);
     },
-    [currentLocation, diagonalKm, playGood, playBad]
+    [currentLocation, currentRound, diagonalKm, playGood, playBad]
   );
 
   const handleNext = useCallback(() => {
