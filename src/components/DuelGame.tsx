@@ -178,6 +178,16 @@ export default function DuelGame({ code }: { code: string }) {
   const hasSubmittedRef = useRef(false);
   // Prevent resolveRound from running twice
   const roundResolvedRef = useRef(-1);
+  // Mirror of currentRound so stable callbacks (advanceToNextRound) read the
+  // live round without listing it as a dep.
+  const currentRoundRef = useRef(0);
+  // Highest round we've advanced INTO — makes advanceToNextRound idempotent so
+  // concurrent triggers (ready broadcast + handleNext + auto-advance) can't
+  // double-fire and skip a round.
+  const advancedToRef = useRef(0);
+  useEffect(() => {
+    currentRoundRef.current = currentRound;
+  }, [currentRound]);
   // Broadcast channel for "ready for next round" sync
   const readyChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   // The round the opponent signaled "ready for next" for. Comparing it to
@@ -310,6 +320,8 @@ export default function DuelGame({ code }: { code: string }) {
       // result screen labels the right round and the next advance is correct
       // even if currentRound had drifted ahead.
       setCurrentRound(round);
+      currentRoundRef.current = round;
+      if (advancedToRef.current < round) advancedToRef.current = round;
       // Append round only if not already present (prevents duplicates on refresh)
       setRounds((prev) => (prev.length > round ? prev : [...prev, roundData]));
       // Reset ready state for next round
@@ -452,6 +464,8 @@ export default function DuelGame({ code }: { code: string }) {
       // otherwise fall back to inferring from history
       const currentR = duel.current_round ?? history.length;
       setCurrentRound(currentR);
+      currentRoundRef.current = currentR;
+      advancedToRef.current = currentR;
 
       // Game over
       if (duel.status === "finished" || currentR >= DUEL_ROUNDS) {
@@ -803,22 +817,40 @@ export default function DuelGame({ code }: { code: string }) {
   // Actually advance to next round (called when both are ready).
   // Declared before handleNext because handleNext references it.
   const advanceToNextRound = useCallback(() => {
+    const leaving = currentRoundRef.current;
+    const next = leaving + 1;
+    // Idempotency: if we've already advanced into `next` (a concurrent trigger
+    // beat us to it), do nothing — otherwise currentRound could jump by 2 and
+    // skip a round.
+    if (advancedToRef.current >= next) return;
+    advancedToRef.current = next;
+
+    // Re-signal that I've left `leaving`, so an opponent still on its result
+    // screen advances too even if my earlier ready broadcast was lost.
+    readyChannelRef.current?.send({
+      type: "broadcast",
+      event: "ready",
+      payload: { player_id: user?.id, round: leaving },
+    });
+
     hasSubmittedRef.current = false;
     setIReady(false);
     setOpponentReadyRound(null);
     setGuessTimer(null);
     setViewReady(false);
-    setCurrentRound((r) => r + 1);
+    setCurrentRound(next);
     setPhase("playing");
     setMapOpen(false);
-  }, []);
+  }, [user]);
 
   // ====== Handle next round (player presses button) ======
   const handleNext = useCallback(async () => {
-    // Final round or game over → go directly to summary
+    // Final round or game over → go directly to summary. Read scores from refs
+    // (not the state closure) so a KO that landed in checkAndResolveGuesses this
+    // tick isn't missed by a stale closure.
     if (
-      myScore <= 0 ||
-      opponentScore <= 0 ||
+      myScoreRef.current <= 0 ||
+      opponentScoreRef.current <= 0 ||
       currentRound + 1 >= DUEL_ROUNDS
     ) {
       if (duelId) {
@@ -845,16 +877,7 @@ export default function DuelGame({ code }: { code: string }) {
     } else {
       setPhase("waiting-next");
     }
-  }, [
-    currentRound,
-    myScore,
-    opponentScore,
-    duelId,
-    supabase,
-    user,
-    opponentReady,
-    advanceToNextRound,
-  ]);
+  }, [currentRound, duelId, supabase, user, opponentReady, advanceToNextRound]);
 
   // ====== Step 7: Broadcast channel for ready sync ======
   useEffect(() => {
@@ -881,23 +904,30 @@ export default function DuelGame({ code }: { code: string }) {
     };
   }, [duelId, user, supabase]);
 
-  // When opponent becomes ready while I'm already waiting
+  // While waiting for the opponent to also press Next: advance the moment their
+  // ready arrives, and meanwhile RE-BROADCAST my own readiness every 1.5s so a
+  // lost packet recovers in either direction. We never advance on a blind local
+  // timer (that raced ahead a whole round when the opponent was merely reading
+  // the result); the 60s result auto-advance (nextTimer) + the abandon-claim are
+  // the escapes if the opponent is actually gone.
   useEffect(() => {
-    if (phase === "waiting-next" && opponentReady && iReady) {
-      // Intentional: both players ready → advance immediately.
+    if (phase !== "waiting-next" || !iReady) return;
+
+    if (opponentReady) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       advanceToNextRound();
       return;
     }
 
-    // Fallback: if stuck in waiting-next for 3s (broadcast lost), advance anyway
-    if (phase === "waiting-next" && iReady) {
-      const fallback = setTimeout(() => {
-        advanceToNextRound();
-      }, 3000);
-      return () => clearTimeout(fallback);
-    }
-  }, [phase, opponentReady, iReady, advanceToNextRound]);
+    const id = setInterval(() => {
+      readyChannelRef.current?.send({
+        type: "broadcast",
+        event: "ready",
+        payload: { player_id: user?.id, round: currentRound },
+      });
+    }, 1500);
+    return () => clearInterval(id);
+  }, [phase, opponentReady, iReady, currentRound, user, advanceToNextRound]);
 
   // ====== Step 8: Auto-advance timer on result screen ======
   // Start the timer when result phase begins
@@ -990,10 +1020,11 @@ export default function DuelGame({ code }: { code: string }) {
       // Always refresh my own presence so I'm not the one claimed/cleaned.
       await supabase.rpc("duel_heartbeat", { p_duel_id: duelId });
       if (cancelled) return;
-      // Only claim an abandonment win during the ACTIVE guessing phases. On the
-      // result / waiting-next screens a slow opponent should just trigger the
-      // auto-advance, not lose the whole duel.
-      if (phase !== "playing" && phase !== "waiting-opponent") return;
+      // Claim only kicks in after 60s of the opponent's stale heartbeat, so a
+      // present-but-slow opponent (who keeps heartbeating from any in-room
+      // phase, incl. the result screen) is never claimed. Running it in every
+      // in-room phase means a genuinely-gone opponent ends the duel even if I'm
+      // stuck on the result / waiting-next screen.
       const { data: won } = await supabase.rpc("claim_abandoned_duel", {
         p_duel_id: duelId,
       });
