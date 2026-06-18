@@ -660,6 +660,15 @@ export default function DuelGame({ code }: { code: string }) {
       });
 
       if (insertError) {
+        // 23505 = unique violation: a guess for this (duel, player, round)
+        // already landed (double-tap, or the self-heal racing an in-flight
+        // insert). It IS submitted — keep the flag and proceed, don't reopen.
+        if (insertError.code === "23505") {
+          setPhase("waiting-opponent");
+          setMapOpen(false);
+          await checkAndResolveGuesses();
+          return;
+        }
         hasSubmittedRef.current = false;
         return;
       }
