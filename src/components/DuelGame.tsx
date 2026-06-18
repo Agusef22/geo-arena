@@ -180,8 +180,14 @@ export default function DuelGame({ code }: { code: string }) {
   const roundResolvedRef = useRef(-1);
   // Broadcast channel for "ready for next round" sync
   const readyChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const [opponentReady, setOpponentReady] = useState(false);
+  // The round the opponent signaled "ready for next" for. Comparing it to
+  // currentRound makes a late/stale ready broadcast from a previous round
+  // harmless (it can no longer trigger a premature or double advance).
+  const [opponentReadyRound, setOpponentReadyRound] = useState<number | null>(
+    null
+  );
   const [iReady, setIReady] = useState(false);
+  const opponentReady = opponentReadyRound === currentRound;
   // Timer: countdown when opponent guessed but I haven't
   const GUESS_TIME_LIMIT = 30;
   const [guessTimer, setGuessTimer] = useState<number | null>(null);
@@ -308,7 +314,7 @@ export default function DuelGame({ code }: { code: string }) {
       setRounds((prev) => (prev.length > round ? prev : [...prev, roundData]));
       // Reset ready state for next round
       setIReady(false);
-      setOpponentReady(false);
+      setOpponentReadyRound(null);
       setPhase("result");
     },
     [duelId, user, locations, supabase]
@@ -675,7 +681,19 @@ export default function DuelGame({ code }: { code: string }) {
         hasSubmittedRef.current = true;
         if (phase === "playing") setPhase("waiting-opponent");
         setGuessTimer(null);
-      } else if (opponentGuess && !hasSubmittedRef.current && !timedRef.current) {
+        return;
+      }
+
+      // Self-heal: I'm on the play screen for this round but the DB has no guess
+      // from me, so I cannot be "already submitted". Clear a stale flag left by a
+      // desynced advance — otherwise tapping Guess would silently no-op. (Safe:
+      // once a guess is actually sent, handleGuess moves us to waiting-opponent,
+      // so we're no longer in "playing" here.)
+      if (phase === "playing" && hasSubmittedRef.current) {
+        hasSubmittedRef.current = false;
+      }
+
+      if (opponentGuess && !hasSubmittedRef.current && !timedRef.current) {
         // Opponent guessed but I haven't — count 30s from when WE first saw it
         // (local clock only). Anchoring to the server's created_at vs our
         // Date.now() let a fast device clock expire the timer instantly.
@@ -787,7 +805,7 @@ export default function DuelGame({ code }: { code: string }) {
   const advanceToNextRound = useCallback(() => {
     hasSubmittedRef.current = false;
     setIReady(false);
-    setOpponentReady(false);
+    setOpponentReadyRound(null);
     setGuessTimer(null);
     setViewReady(false);
     setCurrentRound((r) => r + 1);
@@ -850,7 +868,7 @@ export default function DuelGame({ code }: { code: string }) {
       .on("broadcast", { event: "ready" }, (payload) => {
         const data = payload.payload as { player_id: string; round: number };
         if (data.player_id !== user?.id) {
-          setOpponentReady(true);
+          setOpponentReadyRound(data.round);
         }
       })
       .subscribe();
