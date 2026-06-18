@@ -143,7 +143,7 @@ export default function Home() {
             How well do you know Earth?
           </p>
 
-          <h1 className="font-display font-extrabold leading-[0.88] tracking-[-0.045em] text-[clamp(3.5rem,10vw,9.5rem)] whitespace-nowrap">
+          <h1 className="font-display font-extrabold leading-[0.88] tracking-[-0.045em] text-[clamp(2.5rem,11vw,9.5rem)] whitespace-nowrap">
             <span className="text-pop-gradient">Geo</span>
             <span className="font-light text-amber-300">°</span>
             <span className="text-white">Arena</span>
