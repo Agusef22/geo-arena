@@ -213,7 +213,10 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* items-start: each card keeps its natural height, so expanding one
+            picker doesn't stretch its siblings to match (which looked like all
+            cards expanding at once). */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
           <ChallengePicker />
           <Link
             href="/duel"
