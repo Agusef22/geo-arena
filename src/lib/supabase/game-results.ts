@@ -53,6 +53,73 @@ export async function startClassicGame(
 }
 
 /**
+ * Resume the player's most recent in-progress classic game (started within the
+ * last 12h), so a refresh / navigation doesn't lose progress. Returns the game
+ * id, parsed locations, the region diagonal, and the guesses recorded so far
+ * (in round order). Returns null when there's nothing to resume.
+ */
+export async function resumeClassicGame(): Promise<{
+  gameId: string;
+  locations: Location[];
+  diagonalKm: number;
+  guesses: { lat: number; lng: number }[];
+} | null> {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase.rpc("resume_classic_game");
+  if (error || !data || data.length === 0) return null;
+
+  const row = data[0] as {
+    game_id: string;
+    diagonal_km: number;
+    locations: Array<{ lat: number; lng: number; pano?: string; heading?: number }>;
+    guesses: Array<{ lat: number; lng: number }>;
+  };
+
+  const locations: Location[] = (row.locations ?? []).map((l, i) => ({
+    id: `loc-${i}`,
+    lat: l.lat,
+    lng: l.lng,
+    panoId: l.pano,
+    heading: l.heading,
+  }));
+
+  if (locations.length === 0) return null;
+
+  return {
+    gameId: row.game_id,
+    locations,
+    diagonalKm: row.diagonal_km,
+    guesses: row.guesses ?? [],
+  };
+}
+
+/**
+ * Persist a single guess for an in-progress game so it survives a refresh.
+ * Fire-and-forget; idempotent server-side (only the next expected round index
+ * is appended). No-op for anonymous/unsaved games.
+ */
+export async function recordClassicGuess(
+  gameId: string,
+  round: number,
+  lat: number,
+  lng: number
+): Promise<void> {
+  const supabase = createClient();
+  await supabase.rpc("record_classic_guess", {
+    p_game_id: gameId,
+    p_round: round,
+    p_lat: lat,
+    p_lng: lng,
+  });
+}
+
+/**
  * Submit a classic game's guesses. The server scores them against the
  * locations it stored for this game and records the result. `guesses` are in
  * round order (length may be < the game's rounds if the player got a game
