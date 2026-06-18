@@ -188,6 +188,12 @@ export default function DuelGame({ code }: { code: string }) {
   useEffect(() => {
     currentRoundRef.current = currentRound;
   }, [currentRound]);
+  // Mirror of viewReady for the guess-state closure (avoids re-subscribing the
+  // guess channel when the panorama finishes loading).
+  const viewReadyRef = useRef(false);
+  useEffect(() => {
+    viewReadyRef.current = viewReady;
+  }, [viewReady]);
   // Broadcast channel for "ready for next round" sync
   const readyChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   // The round the opponent signaled "ready for next" for. Comparing it to
@@ -716,8 +722,15 @@ export default function DuelGame({ code }: { code: string }) {
         hasSubmittedRef.current = false;
       }
 
-      if (opponentGuess && !hasSubmittedRef.current && !timedRef.current) {
+      if (
+        opponentGuess &&
+        !hasSubmittedRef.current &&
+        !timedRef.current &&
+        viewReadyRef.current
+      ) {
         // Opponent guessed but I haven't — count 30s from when WE first saw it
+        // AND our panorama has rendered (viewReadyRef), so a fast opponent + a
+        // slow-loading pano can't auto-submit an ocean guess before I can look.
         // (local clock only). Anchoring to the server's created_at vs our
         // Date.now() let a fast device clock expire the timer instantly.
         // (In Timed mode the timer is round-start based instead — see below.)
