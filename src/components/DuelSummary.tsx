@@ -138,7 +138,7 @@ export default function DuelSummary({
       {/* Score comparison */}
       <div className="flex items-center gap-4 sm:gap-8">
         {/* Me */}
-        <div className={`rounded-2xl p-4 sm:p-6 min-w-[140px] ${iWin ? "bg-emerald-950/30 border border-emerald-900/40" : isDraw ? "bg-zinc-800" : "bg-zinc-800"}`}>
+        <div className={`rounded-2xl p-4 sm:p-6 min-w-[140px] ${iWin ? "bg-emerald-950/30 border border-emerald-900/40" : isDraw ? "surface-pop" : "surface-pop"}`}>
           <span className="text-3xl">{myEmoji}</span>
           <p className="text-sm font-medium text-white mt-1">{myName}</p>
           <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-2 ${iWin ? "text-emerald-400" : isDraw ? "text-yellow-400" : "text-red-400"}`}>
@@ -157,7 +157,7 @@ export default function DuelSummary({
         <span className="text-neutral-600 font-bold text-lg">vs</span>
 
         {/* Opponent */}
-        <div className={`rounded-2xl p-4 sm:p-6 min-w-[140px] ${iLose ? "bg-emerald-950/30 border border-emerald-900/40" : isDraw ? "bg-zinc-800" : "bg-zinc-800"}`}>
+        <div className={`rounded-2xl p-4 sm:p-6 min-w-[140px] ${iLose ? "bg-emerald-950/30 border border-emerald-900/40" : isDraw ? "surface-pop" : "surface-pop"}`}>
           <span className="text-3xl">{opponentEmoji}</span>
           <p className="text-sm font-medium text-white mt-1">{opponentName}</p>
           <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-2 ${iLose ? "text-emerald-400" : isDraw ? "text-yellow-400" : "text-red-400"}`}>

@@ -337,7 +337,7 @@ export default function Game({
   // Loading screen
   if (phase === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 bg-grid px-4">
+      <div className="flex flex-col items-center justify-center h-dvh pop-bg px-4">
         <div className="text-center">
           <div className="relative mx-auto mb-6 w-16 h-16">
             <div className="absolute inset-0 rounded-full border-2 border-zinc-700 animate-pulse" />
@@ -382,7 +382,7 @@ export default function Game({
   // Error screen
   if (phase === "error") {
     return (
-      <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 bg-grid px-4">
+      <div className="flex flex-col items-center justify-center h-dvh pop-bg px-4">
         <div className="text-center">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-6 mx-auto">
             <circle cx="12" cy="12" r="10" />
@@ -418,7 +418,7 @@ export default function Game({
 
   if (phase === "summary") {
     return (
-      <div className="h-dvh bg-zinc-950">
+      <div className="h-dvh pop-bg">
         <GameSummary
           finalScore={currentScore}
           rounds={rounds}
@@ -433,7 +433,7 @@ export default function Game({
     const prevRounds = rounds.slice(0, -1);
     const scoreBeforeThisRound = prevRounds.reduce((sum, r) => sum + r.points, 0);
     return (
-      <div className="h-dvh bg-zinc-900">
+      <div className="h-dvh pop-bg">
         <RoundResult
           actualLat={lastRound.location.lat}
           actualLng={lastRound.location.lng}
@@ -619,7 +619,7 @@ export default function Game({
       {/* Leave confirmation — abandoning forfeits the game as a loss */}
       {showLeaveConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+          <div className="surface-pop p-6 max-w-sm w-full text-center shadow-2xl">
             <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
               <svg
                 width="24"

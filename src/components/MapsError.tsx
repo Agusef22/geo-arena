@@ -6,7 +6,7 @@ import Link from "next/link";
 // game must not start without the map, so we surface this instead.
 export default function MapsError() {
   return (
-    <div className="flex flex-col items-center justify-center h-dvh bg-zinc-950 px-4 text-center">
+    <div className="flex flex-col items-center justify-center h-dvh pop-bg px-4 text-center">
       <svg
         width="48"
         height="48"
@@ -30,13 +30,13 @@ export default function MapsError() {
       <div className="flex items-center gap-3">
         <Link
           href="/"
-          className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-3 px-6 rounded-full transition-all"
+          className="bg-white/5 hover:bg-white/10 text-white font-bold py-3 px-6 rounded-full transition-all"
         >
           Menu
         </Link>
         <button
           onClick={() => window.location.reload()}
-          className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-3 px-8 rounded-full transition-all cursor-pointer"
+          className="pop-press bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a] font-bold py-3 px-8 rounded-full transition-all cursor-pointer [--pop-shadow:#047857]"
         >
           Try again
         </button>

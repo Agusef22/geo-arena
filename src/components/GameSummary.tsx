@@ -51,7 +51,7 @@ function RoundRow({ round, index }: { round: RoundData; index: number }) {
   const tier = getScoreTier(round.points);
 
   return (
-    <div className="flex items-center justify-between bg-zinc-800/60 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
+    <div className="flex items-center justify-between surface-pop px-3 sm:px-4 py-2 sm:py-2.5">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <span className="text-xs text-zinc-500 w-4 shrink-0">{index + 1}</span>
         <div className="text-left min-w-0">
@@ -127,7 +127,7 @@ export default function GameSummary({
       </div>
 
       {/* Score card */}
-      <div className="rounded-2xl p-4 sm:p-6 w-full max-w-[320px] bg-zinc-800">
+      <div className="rounded-2xl p-4 sm:p-6 w-full max-w-[320px] surface-pop">
         <p className="text-xs sm:text-sm text-zinc-400 uppercase tracking-wider mb-1">
           Final Score
         </p>

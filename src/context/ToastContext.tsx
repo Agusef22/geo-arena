@@ -72,7 +72,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   return (
-    <div className="pointer-events-auto bg-zinc-900 border border-zinc-700/70 rounded-xl shadow-2xl p-3.5">
+    <div className="pointer-events-auto surface-pop shadow-2xl p-3.5">
       <div className="flex items-start gap-3">
         {toast.emoji && <span className="text-2xl leading-none mt-0.5">{toast.emoji}</span>}
         <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
               className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
                 a.primary
                   ? "bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0a]"
-                  : "bg-zinc-800 hover:bg-zinc-700 text-neutral-300"
+                  : "bg-white/5 hover:bg-white/10 text-neutral-300"
               }`}
             >
               {a.label}

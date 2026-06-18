@@ -55,9 +55,9 @@ export default function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-56 surface-pop shadow-2xl overflow-hidden z-50">
           {/* Profile header */}
-          <div className="px-4 py-3 border-b border-zinc-800">
+          <div className="px-4 py-3 border-b border-white/10">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{profile.emoji}</span>
               <div>
@@ -76,7 +76,7 @@ export default function UserMenu() {
             <Link
               href="/friends"
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"
+              className="flex items-center justify-between px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 transition-colors"
             >
               <span>Friends</span>
               {incoming.length > 0 && (
@@ -88,14 +88,14 @@ export default function UserMenu() {
             <Link
               href="/profile"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"
+              className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 transition-colors"
             >
               Profile &amp; history
             </Link>
             <Link
               href="/profile/edit"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-zinc-800 transition-colors"
+              className="block px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 transition-colors"
             >
               Edit profile
             </Link>
@@ -104,7 +104,7 @@ export default function UserMenu() {
                 setOpen(false);
                 await signOut();
               }}
-              className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors cursor-pointer"
             >
               Sign out
             </button>
